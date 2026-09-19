@@ -15,7 +15,6 @@
       background-size: 18px 18px;
       color: #52473C;
       overflow-x: hidden;
-      touch-action: manipulation;
     }
     .font-serif-custom { font-family: 'Noto Serif TC', serif; }
 
@@ -63,12 +62,11 @@
       justify-content: center;
       align-items: flex-start;
       overflow: hidden;
-      position: relative;
     }
 
     #frontCanvas, #editorCanvas {
       transform-origin: top center;
-      transition: transform 0.1s ease-out;
+      transition: transform 0.2s ease;
     }
   </style>
 </head>
@@ -271,10 +269,10 @@
 
         <!-- TAB 2 -->
         <div id="tab-canvas" class="hidden space-y-4 bg-[#FAF8F5] rounded-3xl p-6 border border-[#ECE4DA]">
-          <div class="flex justify-between items-center flex-wrap gap-2">
-            <h3 class="font-bold text-sm text-[#52473C]">🎨 拖拽調整桌位與 L 型紅毯控制（自動同步）</h3>
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-sm text-[#52473C]">🎨 拖拽調整桌位與 L 型紅毯控制</h3>
             <button id="btnSaveCanvas" class="px-4 py-2 btn-brown text-white rounded-xl text-xs font-bold shadow-sm">
-              💾 手動儲存佈局
+              💾 儲存佈局至雲端
             </button>
           </div>
 
@@ -420,6 +418,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
+    // 💥請在此填入您的 Firebase 設定💥
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -461,15 +460,38 @@
     let guests = defaultGuests;
     let adminPassword = "1234";
     let currentSelectedGuest = null;
-    let isLocallyDragging = false; // 防止拖曳時被雲端更新打斷
 
-    document.addEventListener('DOMContentLoaded', () => {
+    // 即時監聽 Firebase 資料庫變化
+    onValue(ref(db, 'wedding'), (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        weddingInfo = data.info || defaultInfo;
+        tables = data.tables || defaultTables;
+        lCarpet = data.lCarpet || defaultLCarpet;
+        guests = data.guests || defaultGuests;
+        adminPassword = data.password || "1234";
+      } else {
+        set(ref(db, 'wedding'), {
+          info: defaultInfo,
+          tables: defaultTables,
+          lCarpet: defaultLCarpet,
+          guests: defaultGuests,
+          password: "1234"
+        });
+      }
+
+      document.getElementById('syncStatusDot').className = "inline-block w-2 h-2 rounded-full bg-green-500 shadow-sm";
       renderWeddingInfo();
       renderFrontendMap();
       refreshAdminData();
       autoScaleCanvas();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      autoScaleCanvas();
       window.addEventListener('resize', autoScaleCanvas);
 
+      // 事件綁定
       document.getElementById('topToggleBtn').onclick = toggleAdminMode;
       document.getElementById('searchInput').oninput = handleSearch;
       document.getElementById('btnCheckPassword').onclick = checkAdminPassword;
@@ -492,39 +514,7 @@
       ['tables', 'canvas', 'info'].forEach(tab => {
         document.getElementById(`tabBtn-${tab}`).onclick = () => switchAdminTab(tab);
       });
-
-      initFirebaseListener();
     });
-
-    function initFirebaseListener() {
-      onValue(ref(db, 'wedding'), (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          weddingInfo = data.info || defaultInfo;
-          // 若正在拖曳中，不直接覆蓋 tables 陣列以防滑鼠抖動
-          if (!isLocallyDragging) {
-            tables = data.tables || defaultTables;
-          }
-          lCarpet = data.lCarpet || defaultLCarpet;
-          guests = data.guests || defaultGuests;
-          adminPassword = data.password || "1234";
-        } else {
-          syncToFirebase();
-        }
-
-        const dot = document.getElementById('syncStatusDot');
-        if (dot) dot.className = "inline-block w-2 h-2 rounded-full bg-green-500 shadow-sm";
-        
-        renderWeddingInfo();
-        renderFrontendMap();
-        refreshAdminData();
-        autoScaleCanvas();
-      }, (error) => {
-        console.error("Firebase 連線讀取錯誤: ", error);
-        const dot = document.getElementById('syncStatusDot');
-        if (dot) dot.className = "inline-block w-2 h-2 rounded-full bg-red-500 shadow-sm";
-      });
-    }
 
     function autoScaleCanvas() {
       const wrappers = [
@@ -571,7 +561,6 @@
     function renderFrontendMap() {
       const container = document.getElementById('mapNodesContainer');
       const svg = document.getElementById('frontCarpetSvg');
-      if (!container || !svg) return;
       container.innerHTML = '';
       svg.innerHTML = '';
 
@@ -586,16 +575,16 @@
       svg.appendChild(polyline);
 
       tables.forEach(t => {
+        const seatedCount = guests.filter(g => g.tableCode === t.id).length;
         const circle = document.createElement('div');
         circle.id = `table-node-${t.id}`;
         circle.className = 'absolute rounded-full table-circle-node flex flex-col justify-center items-center text-center p-1 shadow-md select-none';
         circle.style.top = `${t.top}px`;
         circle.style.left = `${t.left}px`;
 
-        // 已移除人數顯示，僅保留桌次名稱與代碼
         circle.innerHTML = `
-          <span class="text-xs font-bold font-serif-custom text-[#52473C] leading-tight px-1 truncate w-full">${t.name}</span>
-          <span class="text-[9px] text-[#8C7A6B] mt-0.5">${t.id}</span>
+          <span class="text-[11px] font-bold font-serif-custom text-[#52473C] leading-tight px-0.5 truncate w-full">${t.name}</span>
+          <span class="text-[8px] text-[#8C7A6B] mt-0.5 bg-white/70 px-1.5 py-0.2 rounded-full border border-[#E0D5C7]">${seatedCount}人</span>
         `;
         container.appendChild(circle);
       });
@@ -666,14 +655,15 @@
       if (admin.classList.contains('hidden')) {
         frontend.classList.add('hidden');
         admin.classList.remove('hidden');
-        btnText.innerText = '前台預覽';
-        tagText.innerText = 'ADMIN PORTAL';
+        btnText.innerText = "切換至前台";
+        tagText.innerText = "ADMIN CENTER";
       } else {
         admin.classList.add('hidden');
         frontend.classList.remove('hidden');
-        btnText.innerText = '後台管理';
-        tagText.innerText = 'GUEST PORTAL';
+        btnText.innerText = "後台管理";
+        tagText.innerText = "GUEST PORTAL";
         renderFrontendMap();
+        setTimeout(autoScaleCanvas, 50);
       }
     }
 
@@ -684,185 +674,172 @@
         document.getElementById('adminContent').classList.remove('hidden');
         refreshAdminData();
       } else {
-        alert('密碼錯誤，請重新輸入！');
+        alert('密碼錯誤！');
       }
     }
 
     function changeAdminPassword() {
-      const cur = document.getElementById('curPassword').value;
-      const neo = document.getElementById('newPassword').value;
-      const confirm = document.getElementById('confirmPassword').value;
+      const curPw = document.getElementById('curPassword').value;
+      const newPw = document.getElementById('newPassword').value;
+      const confirmPw = document.getElementById('confirmPassword').value;
 
-      if (cur !== adminPassword) {
-        alert('目前密碼輸入錯誤！');
-        return;
-      }
-      if (!neo || neo !== confirm) {
-        alert('新密碼未填寫或兩次輸入不一致！');
-        return;
-      }
+      if (curPw !== adminPassword) return alert('目前密碼錯誤！');
+      if (!newPw || newPw !== confirmPw) return alert('新密碼不一致或為空！');
 
-      adminPassword = neo;
-      syncToFirebase();
-      alert('密碼修改成功！');
-      document.getElementById('curPassword').value = '';
-      document.getElementById('newPassword').value = '';
-      document.getElementById('confirmPassword').value = '';
+      adminPassword = newPw;
+      set(ref(db, 'wedding/password'), adminPassword);
+      alert('密碼已成功更新至雲端！');
     }
 
     function switchAdminTab(tabName) {
       ['tables', 'canvas', 'info'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
         const btn = document.getElementById(`tabBtn-${t}`);
-        const panel = document.getElementById(`tab-${t}`);
-        if (t === tabName) {
-          btn.className = "px-4 py-2 rounded-xl text-xs font-bold bg-[#B09F8C] text-white shadow-sm whitespace-nowrap";
-          panel.classList.remove('hidden');
-        } else {
-          btn.className = "px-4 py-2 rounded-xl text-xs font-medium text-[#786A5C] hover:bg-[#EFE8DF] whitespace-nowrap";
-          panel.classList.add('hidden');
-        }
+        btn.classList.remove('bg-[#B09F8C]', 'text-white', 'font-bold');
+        btn.classList.add('text-[#786A5C]');
       });
+
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tabBtn-${tabName}`);
+      activeBtn.classList.add('bg-[#B09F8C]', 'text-white', 'font-bold');
+
       if (tabName === 'canvas') {
-        renderEditorCanvas();
+        renderCanvasEditor();
+        setTimeout(autoScaleCanvas, 50);
       }
     }
 
     function refreshAdminData() {
       document.getElementById('statTableCount').innerText = tables.length;
       document.getElementById('statGuestCount').innerText = guests.length;
-      document.getElementById('totalGuestCount').innerText = guests.length;
-      document.getElementById('filteredGuestCount').innerText = guests.length;
-
-      const select = document.getElementById('addGuestTableSelect');
-      if (select) {
-        select.innerHTML = '';
-        tables.forEach(t => {
-          const opt = document.createElement('option');
-          opt.value = t.id;
-          opt.innerText = `${t.name} (${t.id})`;
-          select.appendChild(opt);
-        });
-      }
-
-      renderAdminTableCards();
+      renderAdminTableGrid();
+      renderGuestSelectOptions();
       renderGuestAdminTable();
     }
 
-    function renderAdminTableCards() {
+    function renderAdminTableGrid() {
       const grid = document.getElementById('adminTableCardGrid');
-      if (!grid) return;
       grid.innerHTML = '';
+
       tables.forEach(t => {
-        const seated = guests.filter(g => g.tableCode === t.id).length;
+        const seatedCount = guests.filter(g => g.tableCode === t.id).length;
         const card = document.createElement('div');
-        card.className = "bg-white/80 p-3 rounded-2xl border border-[#ECE4DA] flex justify-between items-center text-xs";
+        card.className = 'bg-white p-3 rounded-2xl border border-[#ECE4DA] flex justify-between items-center text-xs';
         card.innerHTML = `
           <div>
-            <span class="font-bold text-[#52473C]">${t.name}</span>
-            <span class="text-[10px] text-[#A39281] ml-1">(${t.id})</span>
-            <p class="text-[10px] text-[#8C7A6B] mt-0.5">已入席：${seated} 人 | 屬性：${t.category || '-'}</p>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-[#52473C]">${t.name}</span>
+              <span class="bg-[#EFE8DF] px-2 py-0.5 rounded text-[10px] text-[#786A5C]">${t.id}</span>
+            </div>
+            <p class="text-[10px] text-[#A39281] mt-0.5">目前人數：<span class="font-bold text-[#52473C]">${seatedCount}</span> 人</p>
           </div>
-          <button type="button" onclick="window.deleteTableItem('${t.id}')" class="px-2.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition text-[10px]">刪除</button>
+          <button data-id="${t.id}" class="btn-delete-table text-red-400 font-medium text-[11px] px-2 py-1 bg-red-50 rounded-lg">刪除</button>
         `;
         grid.appendChild(card);
       });
+
+      document.querySelectorAll('.btn-delete-table').forEach(btn => {
+        btn.onclick = (e) => deleteTable(e.target.getAttribute('data-id'));
+      });
     }
 
-    window.deleteTableItem = function(id) {
-      if (confirm('確定要刪除此桌次嗎？')) {
-        tables = tables.filter(t => t.id !== id);
-        guests.forEach(g => { if (g.tableCode === id) g.tableCode = ''; });
-        syncToFirebase();
-      }
-    };
+    function renderGuestSelectOptions() {
+      const select = document.getElementById('addGuestTableSelect');
+      select.innerHTML = '';
+      tables.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.innerText = `${t.name} (${t.id})`;
+        select.appendChild(opt);
+      });
+    }
 
     function renderGuestAdminTable() {
+      const filter = document.getElementById('adminGuestSearch').value.trim().toLowerCase();
       const tbody = document.getElementById('adminGuestTableBody');
-      const searchInputElem = document.getElementById('adminGuestSearch');
-      if (!tbody || !searchInputElem) return;
-      const keyword = searchInputElem.value.trim().toLowerCase();
       tbody.innerHTML = '';
 
-      const filtered = guests.filter(g => g.name.toLowerCase().includes(keyword) || g.tableCode.toLowerCase().includes(keyword));
+      const filtered = guests.filter(g => 
+        g.name.toLowerCase().includes(filter) || 
+        g.tableCode.toLowerCase().includes(filter)
+      );
+
       document.getElementById('filteredGuestCount').innerText = filtered.length;
+      document.getElementById('totalGuestCount').innerText = guests.length;
 
       filtered.forEach((g, index) => {
         const table = tables.find(t => t.id === g.tableCode);
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-white/50 transition";
+        tr.className = 'hover:bg-white/60 transition';
         tr.innerHTML = `
           <td class="py-2.5 px-3 font-bold text-[#52473C]">${g.name}</td>
-          <td class="py-2.5 px-3 font-mono text-[#8C7A6B]">${g.tableCode}</td>
+          <td class="py-2.5 px-3"><span class="bg-[#EFE8DF] px-2 py-0.5 rounded text-[10px] text-[#786A5C]">${g.tableCode}</span></td>
           <td class="py-2.5 px-3 text-[#786A5C]">${table ? table.name : '未指派'}</td>
           <td class="py-2.5 px-3 text-[#A39281]">${g.note || '-'}</td>
           <td class="py-2.5 px-3 text-right">
-            <button type="button" onclick="window.deleteGuestItem(${index})" class="px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition text-[10px]">刪除</button>
+            <button data-index="${index}" class="btn-delete-guest text-red-400 font-medium">刪除</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
+
+      document.querySelectorAll('.btn-delete-guest').forEach(btn => {
+        btn.onclick = (e) => deleteGuest(parseInt(e.target.getAttribute('data-index')));
+      });
     }
 
-    window.deleteGuestItem = function(index) {
-      if (confirm('確定要刪除這位賓客嗎？')) {
-        guests.splice(index, 1);
-        syncToFirebase();
-      }
-    };
-
     function addNewTable() {
-      const code = document.getElementById('addTableCode').value.trim();
+      const code = document.getElementById('addTableCode').value.trim().toUpperCase();
       const name = document.getElementById('addTableName').value.trim();
-      const category = document.getElementById('addTableCategory').value.trim() || '一般';
+      const category = document.getElementById('addTableCategory').value.trim();
 
-      if (!code || !name) {
-        alert('請填寫桌號代碼與桌次名稱！');
-        return;
-      }
-      if (tables.some(t => t.id === code)) {
-        alert('此桌號代碼已存在！');
-        return;
-      }
+      if (!code || !name) return alert('請填寫代碼與名稱！');
+      if (tables.some(t => t.id === code)) return alert('代碼已存在！');
 
-      tables.push({ id: code, name, category, top: 100, left: 200 });
-      syncToFirebase();
-      document.getElementById('addTableCode').value = '';
-      document.getElementById('addTableName').value = '';
-      document.getElementById('addTableCategory').value = '';
+      tables.push({ id: code, name, category: category || "一般", top: 100, left: 200 });
+      set(ref(db, 'wedding/tables'), tables);
+    }
+
+    function deleteTable(id) {
+      if (!confirm(`確定刪除 ${id}？`)) return;
+      tables = tables.filter(t => t.id !== id);
+      set(ref(db, 'wedding/tables'), tables);
     }
 
     function addNewGuest() {
       const name = document.getElementById('addGuestName').value.trim();
       const tableCode = document.getElementById('addGuestTableSelect').value;
-      const note = document.getElementById('addGuestNote').value.trim() || '-';
+      const note = document.getElementById('addGuestNote').value.trim();
 
-      if (!name) {
-        alert('請填寫賓客姓名！');
-        return;
-      }
+      if (!name) return alert('請輸入姓名！');
 
-      guests.push({ name, tableCode, note });
-      syncToFirebase();
-      document.getElementById('addGuestName').value = '';
-      document.getElementById('addGuestNote').value = '';
+      guests.push({ name, tableCode, note: note || '-' });
+      set(ref(db, 'wedding/guests'), guests);
     }
 
-    function renderEditorCanvas() {
+    function deleteGuest(index) {
+      if (!confirm('確定刪除？')) return;
+      guests.splice(index, 1);
+      set(ref(db, 'wedding/guests'), guests);
+    }
+
+    function saveWeddingInfo() {
+      weddingInfo = {
+        groom: document.getElementById('cfgGroom').value.trim(),
+        bride: document.getElementById('cfgBride').value.trim(),
+        dateTime: document.getElementById('cfgDateTime').value.trim(),
+        location: document.getElementById('cfgLocation').value.trim(),
+        hall: document.getElementById('cfgHall').value.trim()
+      };
+      set(ref(db, 'wedding/info'), weddingInfo);
+      alert('基本資訊已同步至雲端！');
+    }
+
+    function renderCanvasEditor() {
       const container = document.getElementById('editorNodesContainer');
       const svg = document.getElementById('editorCarpetSvg');
-      if (!container || !svg) return;
       container.innerHTML = '';
       svg.innerHTML = '';
-
-      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-      const points = `${lCarpet.x1},${lCarpet.y1} ${lCarpet.x2},${lCarpet.y2} ${lCarpet.x3},${lCarpet.y3}`;
-      polyline.setAttribute('points', points);
-      polyline.setAttribute('stroke', '#D8C5B3');
-      polyline.setAttribute('stroke-width', lCarpet.width || 24);
-      polyline.setAttribute('stroke-linecap', 'round');
-      polyline.setAttribute('stroke-linejoin', 'round');
-      polyline.setAttribute('fill', 'none');
-      svg.appendChild(polyline);
 
       document.getElementById('lX1').value = lCarpet.x1;
       document.getElementById('lY1').value = lCarpet.y1;
@@ -870,111 +847,120 @@
       document.getElementById('lY2').value = lCarpet.y2;
       document.getElementById('lX3').value = lCarpet.x3;
       document.getElementById('lY3').value = lCarpet.y3;
-      document.getElementById('lWidth').value = lCarpet.width;
+      document.getElementById('lWidth').value = lCarpet.width || 24;
+
+      renderEditorCarpetSvg();
 
       tables.forEach(t => {
         const circle = document.createElement('div');
-        circle.className = 'absolute rounded-full table-circle-node flex flex-col justify-center items-center text-center p-1 shadow-md drag-node';
+        circle.id = `drag-node-${t.id}`;
+        circle.className = 'absolute rounded-full table-circle-node drag-node flex flex-col justify-center items-center text-center p-1 shadow-md';
         circle.style.top = `${t.top}px`;
         circle.style.left = `${t.left}px`;
-        // 同樣移除人數顯示
         circle.innerHTML = `
-          <span class="text-xs font-bold font-serif-custom text-[#52473C] truncate w-full">${t.name}</span>
-          <span class="text-[9px] text-[#8C7A6B]">${t.id}</span>
+          <span class="text-[11px] font-bold font-serif-custom text-[#52473C] leading-tight px-0.5 truncate w-full">${t.name}</span>
+          <span class="text-[9px] text-[#8C7A6B] font-mono">${t.id}</span>
         `;
-
-        let isDragging = false;
-        let startX, startY;
-
-        circle.onpointerdown = (e) => {
-          isDragging = true;
-          isLocallyDragging = true;
-          startX = e.clientX - t.left;
-          startY = e.clientY - t.top;
-          circle.setPointerCapture(e.pointerId);
-          e.stopPropagation();
-        };
-
-        circle.onpointermove = (e) => {
-          if (!isDragging) return;
-          let newLeft = e.clientX - startX;
-          let newTop = e.clientY - startY;
-          
-          newLeft = Math.max(0, Math.min(450, newLeft));
-          newTop = Math.max(0, Math.min(780, newTop));
-
-          t.left = newLeft;
-          t.top = newTop;
-          circle.style.left = `${newLeft}px`;
-          circle.style.top = `${newTop}px`;
-        };
-
-        circle.onpointerup = (e) => {
-          if (isDragging) {
-            isDragging = false;
-            isLocallyDragging = false;
-            // 拖曳結束時自動同步至雲端
-            syncToFirebase();
-          }
-          try { circle.releasePointerCapture(e.pointerId); } catch(err) {}
-        };
-
+        enableDrag(circle, t);
         container.appendChild(circle);
       });
     }
 
+    function renderEditorCarpetSvg() {
+      const svg = document.getElementById('editorCarpetSvg');
+      svg.innerHTML = '';
+      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      polyline.setAttribute('points', `${lCarpet.x1},${lCarpet.y1} ${lCarpet.x2},${lCarpet.y2} ${lCarpet.x3},${lCarpet.y3}`);
+      polyline.setAttribute('stroke', '#D8C5B3');
+      polyline.setAttribute('stroke-width', lCarpet.width || 24);
+      polyline.setAttribute('stroke-linecap', 'round');
+      polyline.setAttribute('stroke-linejoin', 'round');
+      polyline.setAttribute('fill', 'none');
+      svg.appendChild(polyline);
+    }
+
     function updateLCarpetFromInput() {
-      lCarpet.x1 = parseFloat(document.getElementById('lX1').value) || 0;
-      lCarpet.y1 = parseFloat(document.getElementById('lY1').value) || 0;
-      lCarpet.x2 = parseFloat(document.getElementById('lX2').value) || 0;
-      lCarpet.y2 = parseFloat(document.getElementById('lY2').value) || 0;
-      lCarpet.x3 = parseFloat(document.getElementById('lX3').value) || 0;
-      lCarpet.y3 = parseFloat(document.getElementById('lY3').value) || 0;
-      lCarpet.width = parseFloat(document.getElementById('lWidth').value) || 24;
-      renderEditorCanvas();
-      syncToFirebase(); // 紅毯數值更動時即時同步
+      lCarpet = {
+        x1: parseInt(document.getElementById('lX1').value) || 0,
+        y1: parseInt(document.getElementById('lY1').value) || 0,
+        x2: parseInt(document.getElementById('lX2').value) || 0,
+        y2: parseInt(document.getElementById('lY2').value) || 0,
+        x3: parseInt(document.getElementById('lX3').value) || 0,
+        y3: parseInt(document.getElementById('lY3').value) || 0,
+        width: parseInt(document.getElementById('lWidth').value) || 24
+      };
+      renderEditorCarpetSvg();
+    }
+
+    function enableDrag(element, tableObj) {
+      let active = false;
+      let startX, startY, origTop, origLeft;
+
+      const onStart = (e) => {
+        active = true;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        startX = clientX;
+        startY = clientY;
+        origTop = element.offsetTop;
+        origLeft = element.offsetLeft;
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('mouseup', onEnd);
+        document.addEventListener('touchend', onEnd);
+      };
+
+      const onMove = (e) => {
+        if (!active) return;
+        if (e.cancelable) e.preventDefault();
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+
+        let newTop = Math.max(0, Math.min(origTop + deltaY, 780));
+        let newLeft = Math.max(0, Math.min(origLeft + deltaX, 450));
+
+        element.style.top = `${newTop}px`;
+        element.style.left = `${newLeft}px`;
+
+        tableObj.top = newTop;
+        tableObj.left = newLeft;
+      };
+
+      const onEnd = () => {
+        active = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        document.removeEventListener('touchend', onEnd);
+      };
+
+      element.addEventListener('mousedown', onStart);
+      element.addEventListener('touchstart', onStart, { passive: false });
     }
 
     function saveCanvasLayout() {
-      syncToFirebase();
-      alert('平面圖佈局與紅毯已成功儲存至雲端！');
-    }
-
-    function saveWeddingInfo() {
-      weddingInfo.groom = document.getElementById('cfgGroom').value.trim();
-      weddingInfo.bride = document.getElementById('cfgBride').value.trim();
-      weddingInfo.dateTime = document.getElementById('cfgDateTime').value.trim();
-      weddingInfo.location = document.getElementById('cfgLocation').value.trim();
-      weddingInfo.hall = document.getElementById('cfgHall').value.trim();
-
-      syncToFirebase();
-      alert('婚禮基本資訊已更新！');
+      set(ref(db, 'wedding/tables'), tables);
+      set(ref(db, 'wedding/lCarpet'), lCarpet);
+      alert('平面圖與紅毯佈局已即時同步至雲端！');
     }
 
     function exportGuestCSV() {
-      let csv = '\ufeff姓名,桌號代碼,桌次名稱,備註\n';
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF姓名,桌號代碼,備註\n";
       guests.forEach(g => {
-        const t = tables.find(tbl => tbl.id === g.tableCode);
-        csv += `"${g.name}","${g.tableCode}","${t ? t.name : ''}","${g.note || '-'}"\n`;
+        csvContent += `"${g.name}","${g.tableCode}","${g.note || '-'}"\n`;
       });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'wedding_guests.csv';
-      a.click();
-    }
-
-    function syncToFirebase() {
-      set(ref(db, 'wedding'), {
-        info: weddingInfo,
-        tables: tables,
-        lCarpet: lCarpet,
-        guests: guests,
-        password: adminPassword
-      }).catch((error) => {
-        console.error("Firebase 同步失敗:", error);
-      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `賓客名單.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   </script>
 </body>
