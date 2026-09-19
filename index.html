@@ -4,17 +4,61 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-
   <title>蘇鴻楷 & 吳亭蓉 婚禮座位查詢系統</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   
+  <!-- Firebase SDK (v9 模組化引入) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'wedding_seating');
+
+    // 將 Firebase 實體掛載到 window 供全域函數使用
+    window.db = db;
+    window.dbRef = dbRef;
+    window.setDatabaseData = (data) => set(dbRef, data);
+
+    // 即時監聽雲端資料變更 (雙向同步核心)
+    onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        window.appData = data;
+      } else {
+        // 若雲端尚無資料，寫入預設初值
+        window.setDatabaseData(window.defaultData);
+        window.appData = window.defaultData;
+      }
+      // 收到最新資料後重新渲染畫面
+      if (window.renderFrontend) window.renderFrontend();
+      if (window.refreshAdminData) window.refreshAdminData();
+      if (window.renderEditorMap) window.renderEditorMap();
+      
+      const statusEl = document.getElementById('syncStatus');
+      if (statusEl) {
+        statusEl.innerText = "🟢 雲端同步中";
+        statusEl.className = "text-[10px] text-green-600 font-bold bg-green-50 px-2.5 py-1 rounded-full border border-green-200";
+      }
+    });
+  </script>
+
   <style>
-    /* 全域防止溢出與文字選取 */
     html, body {
       width: 100%;
       overflow-x: hidden;
@@ -35,7 +79,6 @@
 
     .font-serif-custom { font-family: 'Noto Serif TC', serif; }
     
-    /* 搜尋與定位時的 Pulse 發光動畫 */
     .table-highlight { 
       box-shadow: 0 0 0 6px #B09F8C, 0 12px 24px -4px rgba(176, 159, 140, 0.5); 
       transform: translate(-50%, -50%) scale(1.15) !important;
@@ -49,7 +92,6 @@
       100% { box-shadow: 0 0 0 0px rgba(176, 159, 140, 0), 0 8px 16px rgba(0,0,0,0.1); }
     }
 
-    /* 正圓形設定與防拉伸機制 */
     .table-circle-item {
       aspect-ratio: 1 / 1 !important;
       border-radius: 50% !important;
@@ -60,7 +102,6 @@
       will-change: left, top;
     }
 
-    /* 拖曳時加強視覺標示 */
     .is-dragging {
       z-index: 50 !important;
       border-color: #52473C !important;
@@ -78,6 +119,7 @@
     <div class="flex items-center space-x-2">
       <span class="w-2.5 h-2.5 rounded-full bg-[#E5DEC9]"></span>
       <span class="text-xs font-bold tracking-widest text-[#A39281] uppercase">GUEST PORTAL</span>
+      <span id="syncStatus" class="text-[10px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">🟡 連線中...</span>
     </div>
     <button onclick="toggleAdminMode()" id="topToggleText" class="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-bold bg-[#52473C] text-white hover:bg-[#3D342C] transition shadow-md flex items-center gap-1.5 cursor-pointer">
       <span>⚙️</span> 後台管理
@@ -156,7 +198,7 @@
             <h1 class="text-lg font-bold text-[#52473C] flex items-center gap-2">
               <span>⚙️</span> 婚禮控制中心 & 後台管理系統
             </h1>
-            <p class="text-xs text-[#A39281] mt-1">拖曳桌子會即時自動存檔，切換前台即可即時同步。</p>
+            <p class="text-xs text-[#A39281] mt-1">拖曳桌位或新增資料時，會即時透過 Firebase 自動同步至所有手機與電腦。</p>
           </div>
           <button onclick="exportGuestCSV()" class="px-4 py-2 bg-white border border-[#ECE4DA] rounded-xl text-xs text-[#786A5C] hover:bg-[#F5EFE6] transition flex items-center gap-1 shadow-xs cursor-pointer">
             📄 匯出 CSV
@@ -166,19 +208,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-white border border-[#ECE4DA] rounded-2xl p-4 shadow-xs">
             <p class="text-[11px] text-[#A39281]">總桌數</p>
-            <p class="text-2xl font-bold text-[#52473C] mt-1"><span id="statTotalTables">9</span> <span class="text-xs font-normal text-[#A39281]">桌</span></p>
+            <p class="text-2xl font-bold text-[#52473C] mt-1"><span id="statTotalTables">0</span> <span class="text-xs font-normal text-[#A39281]">桌</span></p>
           </div>
           <div class="bg-white border border-[#ECE4DA] rounded-2xl p-4 shadow-xs">
             <p class="text-[11px] text-[#A39281]">總賓客人數</p>
-            <p class="text-2xl font-bold text-[#52473C] mt-1"><span id="statTotalGuests">2</span> <span class="text-xs font-normal text-[#A39281]">人</span></p>
+            <p class="text-2xl font-bold text-[#52473C] mt-1"><span id="statTotalGuests">0</span> <span class="text-xs font-normal text-[#A39281]">人</span></p>
           </div>
           <div class="bg-white border border-[#ECE4DA] rounded-2xl p-4 shadow-xs">
             <p class="text-[11px] text-[#A39281]">目前新人</p>
-            <p id="statCoupleNames" class="text-sm font-bold text-[#52473C] mt-2 truncate">蘇鴻楷 & 吳亭蓉</p>
+            <p id="statCoupleNames" class="text-sm font-bold text-[#52473C] mt-2 truncate">-- & --</p>
           </div>
           <div class="bg-white border border-[#ECE4DA] rounded-2xl p-4 shadow-xs">
             <p class="text-[11px] text-[#A39281]">宴客日期</p>
-            <p id="statWeddingDate" class="text-sm font-bold text-[#52473C] mt-2 truncate">2026.11.07(六)</p>
+            <p id="statWeddingDate" class="text-sm font-bold text-[#52473C] mt-2 truncate">----.--.--</p>
           </div>
         </div>
 
@@ -267,7 +309,7 @@
               <span>🎨</span> 調整桌位 (按住拖曳桌子) 與 L 型紅毯控制
             </h2>
             <button onclick="saveCanvasLayout()" class="px-5 py-2 bg-[#A39281] text-white rounded-xl text-xs font-bold hover:bg-[#8C7A6B] transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-              <span>💾</span> 手動儲存
+              <span>💾</span> 儲存同步至雲端
             </button>
           </div>
 
@@ -387,7 +429,7 @@
   </footer>
 
   <script>
-    var defaultData = {
+    window.defaultData = {
       info: { groom: "蘇鴻楷", bride: "吳亭蓉", dateTime: "2026.11.07(六)", location: "台南晶英酒店2樓", hall: "明倫仁德廳" },
       tables: [
         { id: "T01", name: "主桌", category: "", top: 120, left: 250 },
@@ -408,38 +450,33 @@
       password: "1234"
     };
 
+    window.appData = window.defaultData;
     var currentTargetTableId = null;
 
-    function loadData() {
-      var local = localStorage.getItem('wedding_seating_data_cache');
-      if (local) {
-        try { return JSON.parse(local); } catch(e) { return defaultData; }
-      }
-      return defaultData;
-    }
-
-    var appData = loadData();
-
     function saveData() {
-      localStorage.setItem('wedding_seating_data_cache', JSON.stringify(appData));
-      renderFrontend();
+      if (window.setDatabaseData) {
+        window.setDatabaseData(window.appData);
+      }
     }
 
     function renderFrontend() {
-      document.getElementById('displayGroom').innerText = appData.info.groom || '';
-      document.getElementById('displayBride').innerText = appData.info.bride || '';
-      document.getElementById('displayDateTime').innerText = appData.info.dateTime || '';
-      document.getElementById('displayLocation').innerText = appData.info.location || '';
-      document.getElementById('displayHall').innerText = appData.info.hall || '';
+      if (!window.appData) return;
+      var data = window.appData;
 
-      document.getElementById('cfgGroom').value = appData.info.groom || '';
-      document.getElementById('cfgBride').value = appData.info.bride || '';
-      document.getElementById('cfgDateTime').value = appData.info.dateTime || '';
-      document.getElementById('cfgLocation').value = appData.info.location || '';
-      document.getElementById('cfgHall').value = appData.info.hall || '';
-      document.getElementById('cfgPassword').value = appData.password || "1234";
+      document.getElementById('displayGroom').innerText = data.info?.groom || '';
+      document.getElementById('displayBride').innerText = data.info?.bride || '';
+      document.getElementById('displayDateTime').innerText = data.info?.dateTime || '';
+      document.getElementById('displayLocation').innerText = data.info?.location || '';
+      document.getElementById('displayHall').innerText = data.info?.hall || '';
 
-      var c = appData.lCarpet || defaultData.lCarpet;
+      document.getElementById('cfgGroom').value = data.info?.groom || '';
+      document.getElementById('cfgBride').value = data.info?.bride || '';
+      document.getElementById('cfgDateTime').value = data.info?.dateTime || '';
+      document.getElementById('cfgLocation').value = data.info?.location || '';
+      document.getElementById('cfgHall').value = data.info?.hall || '';
+      document.getElementById('cfgPassword').value = data.password || "1234";
+
+      var c = data.lCarpet || window.defaultData.lCarpet;
       document.getElementById('carpetX1').value = c.x1;
       document.getElementById('carpetY1').value = c.y1;
       document.getElementById('carpetX2').value = c.x2;
@@ -448,10 +485,10 @@
       document.getElementById('carpetY3').value = c.y3;
       document.getElementById('carpetWidth').value = c.width;
 
-      document.getElementById('statTotalTables').innerText = appData.tables.length;
-      document.getElementById('statTotalGuests').innerText = appData.guests.length;
-      document.getElementById('statCoupleNames').innerText = (appData.info.groom || '') + ' & ' + (appData.info.bride || '');
-      document.getElementById('statWeddingDate').innerText = appData.info.dateTime || '';
+      document.getElementById('statTotalTables').innerText = (data.tables || []).length;
+      document.getElementById('statTotalGuests').innerText = (data.guests || []).length;
+      document.getElementById('statCoupleNames').innerText = (data.info?.groom || '') + ' & ' + (data.info?.bride || '');
+      document.getElementById('statWeddingDate').innerText = data.info?.dateTime || '';
 
       var container = document.getElementById('frontendNodesContainer');
       var svg = document.getElementById('frontendCarpetSvg');
@@ -466,10 +503,10 @@
       polyline.setAttribute('fill', 'none');
       svg.appendChild(polyline);
 
-      appData.tables.forEach(function(t) {
+      (data.tables || []).forEach(function(t) {
         var circle = document.createElement('div');
         circle.id = 'table-node-' + t.id;
-        circle.className = 'absolute table-circle-item w-16 h-16 sm:w-20 sm:h-20 bg-[#FAF6F0] border-2 border-[#D8C5B3] flex flex-col justify-center items-center text-center p-1 shadow-md transition-transform';
+        circle.className = 'absolute table-circle-item w-16 h-16 sm:w-20 sm:h-20 bg-[#FAF6F0] border-2 border-[#D8C5B3] flex flex-col justify-center items-center text-center p-1 shadow-md transition-all';
         
         circle.style.top = ((t.top / 750) * 100) + '%';
         circle.style.left = ((t.left / 500) * 100) + '%';
@@ -497,7 +534,7 @@
 
     function checkAdminPassword() {
       var input = document.getElementById('adminPasswordInput').value.trim();
-      if (input === (appData.password || "1234")) {
+      if (input === (window.appData.password || "1234")) {
         document.getElementById('adminAuthBox').classList.add('hidden');
         document.getElementById('adminContent').classList.remove('hidden');
         refreshAdminData();
@@ -511,19 +548,19 @@
       var keyword = document.getElementById('frontendSearchInput').value.trim().toLowerCase();
       var dropdown = document.getElementById('searchDropdown');
 
-      if (!keyword) {
+      if (!keyword || !window.appData.guests) {
         dropdown.classList.add('hidden');
         dropdown.innerHTML = '';
         return;
       }
 
-      var matches = appData.guests.filter(function(g) {
+      var matches = window.appData.guests.filter(function(g) {
         return g.name && g.name.toLowerCase().indexOf(keyword) !== -1;
       });
 
       if (matches.length > 0) {
         dropdown.innerHTML = matches.map(function(g) {
-          var tableObj = appData.tables.find(function(t) { return t.id === g.tableCode; });
+          var tableObj = (window.appData.tables || []).find(function(t) { return t.id === g.tableCode; });
           var tableName = tableObj ? tableObj.name : g.tableCode;
           return '<div onclick="selectGuestFromDropdown(\'' + g.name + '\')" class="px-4 py-2.5 text-xs text-left hover:bg-[#F9F7F2] cursor-pointer flex justify-between items-center border-b border-[#ECE4DA] last:border-none">' +
                    '<span class="font-bold text-[#52473C]">' + g.name + '</span>' +
@@ -545,11 +582,11 @@
     function handleSearch() {
       var keyword = document.getElementById('frontendSearchInput').value.trim().toLowerCase();
       document.getElementById('searchDropdown').classList.add('hidden');
-      if (!keyword) return;
+      if (!keyword || !window.appData.guests) return;
 
-      var matched = appData.guests.find(function(g) { return g.name && g.name.toLowerCase().indexOf(keyword) !== -1; });
+      var matched = window.appData.guests.find(function(g) { return g.name && g.name.toLowerCase().indexOf(keyword) !== -1; });
       if (matched) {
-        var tableObj = appData.tables.find(function(t) { return t.id === matched.tableCode; });
+        var tableObj = (window.appData.tables || []).find(function(t) { return t.id === matched.tableCode; });
         var tableName = tableObj ? tableObj.name : matched.tableCode;
         
         currentTargetTableId = matched.tableCode;
@@ -600,9 +637,10 @@
     }
 
     function refreshAdminData() {
+      if (!window.appData) return;
       var select = document.getElementById('addGuestTableSelect');
       select.innerHTML = '';
-      appData.tables.forEach(function(t) {
+      (window.appData.tables || []).forEach(function(t) {
         var opt = document.createElement('option');
         opt.value = t.id;
         opt.innerText = t.name + ' (' + t.id + ')';
@@ -611,8 +649,8 @@
 
       var grid = document.getElementById('adminTableCardGrid');
       grid.innerHTML = '';
-      appData.tables.forEach(function(t) {
-        var count = appData.guests.filter(function(g) { return g.tableCode === t.id; }).length;
+      (window.appData.tables || []).forEach(function(t) {
+        var count = (window.appData.guests || []).filter(function(g) { return g.tableCode === t.id; }).length;
         var card = document.createElement('div');
         card.className = "p-3 bg-white border border-[#ECE4DA] rounded-2xl flex justify-between items-center shadow-xs";
         card.innerHTML = '<div>' +
@@ -628,8 +666,8 @@
 
       var tbody = document.getElementById('adminGuestTableBody');
       tbody.innerHTML = '';
-      appData.guests.forEach(function(g, idx) {
-        var tableObj = appData.tables.find(function(t) { return t.id === g.tableCode; });
+      (window.appData.guests || []).forEach(function(g, idx) {
+        var tableObj = (window.appData.tables || []).find(function(t) { return t.id === g.tableCode; });
         var tableName = tableObj ? tableObj.name : g.tableCode;
         var tr = document.createElement('tr');
         tr.className = "border-b border-[#ECE4DA] last:border-none hover:bg-[#FDFCF9]";
@@ -647,9 +685,9 @@
       var cat = document.getElementById('addTableCategory').value.trim();
       if (!code || !name) { alert("請填寫桌號代碼與名稱！"); return; }
       
-      appData.tables.push({ id: code, name: name, category: cat, top: 350, left: 250 });
+      if (!window.appData.tables) window.appData.tables = [];
+      window.appData.tables.push({ id: code, name: name, category: cat, top: 350, left: 250 });
       saveData();
-      refreshAdminData();
       document.getElementById('addTableCode').value = '';
       document.getElementById('addTableName').value = '';
       document.getElementById('addTableCategory').value = '';
@@ -657,9 +695,8 @@
 
     function deleteTable(id) {
       if (confirm("確定要刪除此桌次嗎？")) {
-        appData.tables = appData.tables.filter(function(t) { return t.id !== id; });
+        window.appData.tables = (window.appData.tables || []).filter(function(t) { return t.id !== id; });
         saveData();
-        refreshAdminData();
       }
     }
 
@@ -669,29 +706,28 @@
       var note = document.getElementById('addGuestNote').value.trim();
       if (!name) { alert("請輸入賓客姓名！"); return; }
 
-      appData.guests.push({ name: name, tableCode: tableCode, note: note });
+      if (!window.appData.guests) window.appData.guests = [];
+      window.appData.guests.push({ name: name, tableCode: tableCode, note: note });
       saveData();
-      refreshAdminData();
       document.getElementById('addGuestName').value = '';
       document.getElementById('addGuestNote').value = '';
     }
 
     function deleteGuest(index) {
       if (confirm("確定要刪除此賓客嗎？")) {
-        appData.guests.splice(index, 1);
+        window.appData.guests.splice(index, 1);
         saveData();
-        refreshAdminData();
       }
     }
 
-    /* 渲染後台編輯畫布 */
     function renderEditorMap() {
+      if (!window.appData) return;
       var container = document.getElementById('editorNodesContainer');
       var svg = document.getElementById('editorCarpetSvg');
       container.innerHTML = '';
       svg.innerHTML = '';
 
-      var c = appData.lCarpet || defaultData.lCarpet;
+      var c = window.appData.lCarpet || window.defaultData.lCarpet;
       var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
       polyline.setAttribute('points', c.x1 + ',' + c.y1 + ' ' + c.x2 + ',' + c.y2 + ' ' + c.x3 + ',' + c.y3);
       polyline.setAttribute('stroke', '#D8C5B3');
@@ -700,7 +736,7 @@
       polyline.setAttribute('fill', 'none');
       svg.appendChild(polyline);
 
-      appData.tables.forEach(function(t) {
+      (window.appData.tables || []).forEach(function(t) {
         var circle = document.createElement('div');
         circle.className = 'absolute table-circle-item w-16 h-16 sm:w-20 sm:h-20 bg-white border-2 border-[#B09F8C] flex flex-col justify-center items-center text-center p-1 shadow-md cursor-grab active:cursor-grabbing hover:scale-105 transition-transform';
         circle.style.top = ((t.top / 750) * 100) + '%';
@@ -710,17 +746,15 @@
                            '<span class="text-[8px] sm:text-[9px] text-[#A39281] font-mono pointer-events-none">' + t.id + '</span>';
 
         makeElementDraggable(circle, t);
-
         container.appendChild(circle);
       });
     }
 
-    /* 核心修復：極致穩定的拖曳與即時自動存檔機制 */
     function makeElementDraggable(element, tableData) {
       var canvasBox = document.getElementById('editorCanvasBox');
 
       function onStart(e) {
-        if (e.touches && e.touches.length > 1) return; // 忽略雙指縮放手勢
+        if (e.touches && e.touches.length > 1) return;
         
         e.preventDefault();
         element.classList.add('is-dragging');
@@ -729,14 +763,12 @@
         var clientX = e.touches ? e.touches[0].clientX : e.clientX;
         var clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-        // 當前畫布真實像素大小與座標比率
         var currentCanvasX = (tableData.left / 500) * rect.width;
         var currentCanvasY = (tableData.top / 750) * rect.height;
 
         var startTouchX = clientX - rect.left;
         var startTouchY = clientY - rect.top;
 
-        // 計算按下點相對於桌子中心的位移
         var offsetX = startTouchX - currentCanvasX;
         var offsetY = startTouchY - currentCanvasY;
 
@@ -749,11 +781,9 @@
           var rawX = moveClientX - currentRect.left - offsetX;
           var rawY = moveClientY - currentRect.top - offsetY;
 
-          // 計算並限制在 500 x 750 的設計空間內
           var posX = Math.round((rawX / currentRect.width) * 500);
           var posY = Math.round((rawY / currentRect.height) * 750);
 
-          // 邊界保護 (限制在畫布內，留 25px 邊距)
           posX = Math.max(25, Math.min(475, posX));
           posY = Math.max(25, Math.min(725, posY));
 
@@ -771,7 +801,6 @@
           window.removeEventListener('touchmove', onMove);
           window.removeEventListener('touchend', onEnd);
 
-          // 放開手指/滑鼠時【立即存檔】，防止座標丟失或還原
           saveData();
         }
 
@@ -786,7 +815,7 @@
     }
 
     function updateCarpetFromInputs() {
-      appData.lCarpet = {
+      window.appData.lCarpet = {
         x1: parseInt(document.getElementById('carpetX1').value) || 250,
         y1: parseInt(document.getElementById('carpetY1').value) || 160,
         x2: parseInt(document.getElementById('carpetX2').value) || 250,
@@ -795,30 +824,30 @@
         y3: parseInt(document.getElementById('carpetY3').value) || 652,
         width: parseInt(document.getElementById('carpetWidth').value) || 20
       };
-      renderEditorMap();
       saveData();
     }
 
     function saveCanvasLayout() {
       saveData();
-      alert("桌位與紅毯佈局已成功儲存！");
+      alert("桌位與紅毯佈局已同步至雲端！");
     }
 
     function saveWeddingInfo() {
-      appData.info.groom = document.getElementById('cfgGroom').value.trim();
-      appData.info.bride = document.getElementById('cfgBride').value.trim();
-      appData.info.dateTime = document.getElementById('cfgDateTime').value.trim();
-      appData.info.location = document.getElementById('cfgLocation').value.trim();
-      appData.info.hall = document.getElementById('cfgHall').value.trim();
-      appData.password = document.getElementById('cfgPassword').value.trim() || "1234";
+      if (!window.appData.info) window.appData.info = {};
+      window.appData.info.groom = document.getElementById('cfgGroom').value.trim();
+      window.appData.info.bride = document.getElementById('cfgBride').value.trim();
+      window.appData.info.dateTime = document.getElementById('cfgDateTime').value.trim();
+      window.appData.info.location = document.getElementById('cfgLocation').value.trim();
+      window.appData.info.hall = document.getElementById('cfgHall').value.trim();
+      window.appData.password = document.getElementById('cfgPassword').value.trim() || "1234";
       
       saveData();
-      alert("婚禮基本資訊與密碼已更新！");
+      alert("婚禮基本資訊與密碼已更新並同步！");
     }
 
     function exportGuestCSV() {
       var csvStr = "\uFEFF姓名,席位桌號,備註\n";
-      appData.guests.forEach(function(g) {
+      (window.appData.guests || []).forEach(function(g) {
         csvStr += '"' + g.name + '","' + g.tableCode + '","' + (g.note || '') + '"\n';
       });
       var blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
@@ -827,10 +856,6 @@
       link.download = "賓客名單.csv";
       link.click();
     }
-
-    window.onload = function() {
-      renderFrontend();
-    };
   </script>
 </body>
 </html>
