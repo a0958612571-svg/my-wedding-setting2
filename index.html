@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -14,27 +14,72 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   
   <style>
+    /* 全域防止溢出與文字選取 */
+    html, body {
+      width: 100%;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
     body {
-      font-family: 'Plus Jakarta Sans', 'Noto Serif TC', sans-serif;
+      font-family: 'Plus Jakarta Sans', 'Noto Serif TC', -apple-system, sans-serif;
       background-color: #F8F6F0;
       background-image: radial-gradient(#E5DEC9 1.2px, transparent 1.2px);
       background-size: 20px 20px;
       color: #52473C;
     }
+
     .font-serif-custom { font-family: 'Noto Serif TC', serif; }
-    .table-circle-node { touch-action: none; transition: box-shadow 0.2s, transform 0.2s; }
-    .table-highlight { box-shadow: 0 0 0 4px #B09F8C, 0 10px 15px -3px rgba(0, 0, 0, 0.1); transform: scale(1.08); }
+    
+    /* 搜尋與定位時的 Pulse 發光動畫 */
+    .table-highlight { 
+      box-shadow: 0 0 0 6px #B09F8C, 0 12px 24px -4px rgba(176, 159, 140, 0.5); 
+      transform: translate(-50%, -50%) scale(1.15) !important;
+      z-index: 30 !important;
+      animation: tableGlowPulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes tableGlowPulse {
+      0% { box-shadow: 0 0 0 0px rgba(176, 159, 140, 0.8), 0 8px 16px rgba(0,0,0,0.1); }
+      50% { box-shadow: 0 0 0 18px rgba(176, 159, 140, 0), 0 12px 24px rgba(176, 159, 140, 0.4); }
+      100% { box-shadow: 0 0 0 0px rgba(176, 159, 140, 0), 0 8px 16px rgba(0,0,0,0.1); }
+    }
+
+    /* 正圓形設定與防拉伸機制 */
+    .table-circle-item {
+      aspect-ratio: 1 / 1 !important;
+      border-radius: 50% !important;
+      transform: translate(-50%, -50%);
+      touch-action: none !important;
+      -webkit-user-drag: none;
+      box-sizing: border-box;
+      will-change: left, top;
+    }
+
+    /* 拖曳時加強視覺標示 */
+    .is-dragging {
+      z-index: 50 !important;
+      border-color: #52473C !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+      opacity: 0.9;
+      transform: translate(-50%, -50%) scale(1.08) !important;
+      transition: transform 0.05s ease;
+    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-between p-4 sm:p-8">
+<body class="min-h-screen flex flex-col items-center justify-between p-3 sm:p-8">
 
   <!-- 頂部導覽列 -->
-  <header class="w-full max-w-5xl flex justify-between items-center mb-6 px-2">
+  <header class="w-full max-w-5xl flex justify-between items-center mb-4 sm:mb-6 pt-2 px-2">
     <div class="flex items-center space-x-2">
       <span class="w-2.5 h-2.5 rounded-full bg-[#E5DEC9]"></span>
       <span class="text-xs font-bold tracking-widest text-[#A39281] uppercase">GUEST PORTAL</span>
     </div>
-    <button onclick="toggleAdminMode()" id="topToggleText" class="px-4 py-2 rounded-xl text-xs font-bold bg-[#52473C] text-white hover:bg-[#3D342C] transition shadow-md flex items-center gap-1.5 cursor-pointer">
+    <button onclick="toggleAdminMode()" id="topToggleText" class="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-bold bg-[#52473C] text-white hover:bg-[#3D342C] transition shadow-md flex items-center gap-1.5 cursor-pointer">
       <span>⚙️</span> 後台管理
     </button>
   </header>
@@ -42,46 +87,50 @@
   <main class="w-full max-w-5xl flex flex-col items-center">
 
     <!-- 前台畫面 -->
-    <div id="frontendView" class="w-full flex flex-col items-center space-y-6">
+    <div id="frontendView" class="w-full flex flex-col items-center space-y-5 sm:space-y-6">
       
-      <div class="text-center space-y-2">
-        <span class="px-3 py-1 rounded-full bg-white/80 border border-[#ECE4DA] text-[11px] text-[#A39281] tracking-widest">WEDDING SEATING CHART</span>
-        <h1 class="text-3xl sm:text-4xl font-serif-custom font-bold text-[#52473C] tracking-wide mt-2">
+      <div class="text-center space-y-1.5 sm:space-y-2">
+        <span class="px-3 py-1 rounded-full bg-white/80 border border-[#ECE4DA] text-[10px] sm:text-[11px] text-[#A39281] tracking-widest inline-block">WEDDING SEATING CHART</span>
+        <h1 class="text-2xl sm:text-4xl font-serif-custom font-bold text-[#52473C] tracking-wide mt-1">
           <span id="displayGroom">蘇鴻楷</span> <span class="text-[#A39281] font-normal">&</span> <span id="displayBride">吳亭蓉</span>
         </h1>
         <p class="text-xs text-[#A39281] tracking-wider">誠摯邀請您 參與我們的幸福時刻</p>
       </div>
 
-      <div class="w-full bg-white/70 backdrop-blur-md rounded-3xl p-4 sm:p-6 border border-[#ECE4DA] shadow-sm grid grid-cols-3 gap-2 text-center text-xs">
-        <div class="space-y-1">
-          <p class="text-[11px] text-[#A39281]">宴客日期</p>
-          <p id="displayDateTime" class="font-bold text-[#52473C] text-sm sm:text-base">2026.11.07(六)</p>
+      <div class="w-full bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-[#ECE4DA] shadow-sm grid grid-cols-3 gap-1 sm:gap-2 text-center text-xs">
+        <div class="space-y-0.5 sm:space-y-1">
+          <p class="text-[10px] sm:text-[11px] text-[#A39281]">宴客日期</p>
+          <p id="displayDateTime" class="font-bold text-[#52473C] text-xs sm:text-base">2026.11.07(六)</p>
         </div>
-        <div class="space-y-1 border-x border-[#ECE4DA]">
-          <p class="text-[11px] text-[#A39281]">📍 宴客地點</p>
-          <p id="displayLocation" class="font-bold text-[#52473C] text-sm sm:text-base">台南晶英酒店2樓</p>
+        <div class="space-y-0.5 sm:space-y-1 border-x border-[#ECE4DA]">
+          <p class="text-[10px] sm:text-[11px] text-[#A39281]">📍 宴客地點</p>
+          <p id="displayLocation" class="font-bold text-[#52473C] text-xs sm:text-base">台南晶英酒店2樓</p>
         </div>
-        <div class="space-y-1">
-          <p class="text-[11px] text-[#A39281]">🥂 宴會廳別</p>
-          <p id="displayHall" class="font-bold text-[#52473C] text-sm sm:text-base">明倫仁德廳</p>
+        <div class="space-y-0.5 sm:space-y-1">
+          <p class="text-[10px] sm:text-[11px] text-[#A39281]">🥂 宴會廳別</p>
+          <p id="displayHall" class="font-bold text-[#52473C] text-xs sm:text-base">明倫仁德廳</p>
         </div>
       </div>
 
-      <div class="w-full bg-white/70 backdrop-blur-md rounded-3xl p-4 border border-[#ECE4DA] shadow-sm flex flex-col items-center space-y-2">
+      <!-- 搜尋區塊 -->
+      <div class="w-full bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 border border-[#ECE4DA] shadow-sm flex flex-col items-center space-y-2">
         <p class="text-xs text-[#8C7A6B]">請輸入您的「賓客姓名」快速查詢席位桌號</p>
         <div class="relative w-full max-w-md">
-          <input type="text" id="frontendSearchInput" onkeydown="if(event.key==='Enter') handleSearch()" placeholder="例如：蘇鴻楷、吳亭蓉..." class="w-full px-5 py-3 rounded-full bg-white border border-[#ECE4DA] text-xs focus:outline-none focus:ring-2 focus:ring-[#B09F8C] shadow-inner text-[#52473C]">
-          <button onclick="handleSearch()" class="absolute right-3 top-2.5 px-3 py-1 bg-[#B09F8C] text-white rounded-full text-xs font-bold hover:opacity-90 transition cursor-pointer">搜尋</button>
+          <input type="text" id="frontendSearchInput" oninput="handleSearchLive()" onkeydown="if(event.key==='Enter') handleSearch()" placeholder="例如：蘇鴻楷、吳亭蓉..." class="w-full px-5 py-2.5 sm:py-3 rounded-full bg-white border border-[#ECE4DA] text-xs focus:outline-none focus:ring-2 focus:ring-[#B09F8C] shadow-inner text-[#52473C]">
+          <button onclick="handleSearch()" class="absolute right-2 top-1.5 sm:top-2 px-3 py-1 sm:py-1.5 bg-[#B09F8C] text-white rounded-full text-xs font-bold hover:opacity-90 transition cursor-pointer">搜尋</button>
+          
+          <div id="searchDropdown" class="hidden absolute left-0 right-0 top-12 bg-white border border-[#ECE4DA] rounded-2xl shadow-xl z-30 max-h-48 overflow-y-auto"></div>
         </div>
       </div>
 
-      <div class="w-full bg-white/70 backdrop-blur-md rounded-3xl p-6 border border-[#ECE4DA] shadow-sm flex flex-col items-center relative min-h-[600px]">
-        <div class="mb-6 px-8 py-2 rounded-full bg-[#EFE8DF] border border-[#ECE4DA] text-xs font-bold text-[#786A5C] tracking-wider shadow-xs">
+      <!-- 宴會區域 -->
+      <div class="w-full bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-[#ECE4DA] shadow-sm flex flex-col items-center relative min-h-[500px]">
+        <div class="mb-4 sm:mb-6 px-6 py-1.5 sm:px-8 sm:py-2 rounded-full bg-[#EFE8DF] border border-[#ECE4DA] text-xs font-bold text-[#786A5C] tracking-wider shadow-xs">
           ◆ 主 舞 臺 ◆ (STAGE)
         </div>
 
-        <div class="relative w-full max-w-[500px] h-[750px] bg-white rounded-3xl border border-[#ECE4DA] shadow-inner overflow-hidden">
-          <svg id="frontendCarpetSvg" class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 500 800" preserveAspectRatio="none"></svg>
+        <div class="relative w-full max-w-[500px] aspect-[5/7.5] bg-white rounded-2xl sm:rounded-3xl border border-[#ECE4DA] shadow-inner overflow-hidden mx-auto">
+          <svg id="frontendCarpetSvg" class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 500 750" preserveAspectRatio="xMidYMin meet"></svg>
           <div id="frontendNodesContainer" class="absolute inset-0 w-full h-full"></div>
         </div>
       </div>
@@ -92,7 +141,7 @@
     <div id="adminView" class="hidden w-full flex flex-col space-y-6">
       
       <!-- 驗證密碼 -->
-      <div id="adminAuthBox" class="w-full bg-white/90 backdrop-blur-md rounded-3xl p-10 border border-[#ECE4DA] shadow-lg flex flex-col items-center justify-center space-y-4">
+      <div id="adminAuthBox" class="w-full bg-white/90 backdrop-blur-md rounded-3xl p-8 sm:p-10 border border-[#ECE4DA] shadow-lg flex flex-col items-center justify-center space-y-4">
         <div class="w-12 h-12 rounded-full bg-[#F5EFE6] flex items-center justify-center text-xl">🔒</div>
         <h3 class="text-sm font-bold text-[#52473C]">後台權限驗證</h3>
         <input type="password" id="adminPasswordInput" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter') checkAdminPassword()" class="px-4 py-2 border border-[#ECE4DA] rounded-xl text-xs text-center focus:outline-none w-64">
@@ -102,20 +151,18 @@
       <!-- 後台管理控制台 -->
       <div id="adminContent" class="hidden flex flex-col space-y-6">
         
-        <!-- 頂部標題與匯出 CSV -->
         <div class="bg-[#F9F7F2]/80 border border-[#ECE4DA] rounded-3xl p-6 shadow-sm flex justify-between items-start">
           <div>
             <h1 class="text-lg font-bold text-[#52473C] flex items-center gap-2">
               <span>⚙️</span> 婚禮控制中心 & 後台管理系統
             </h1>
-            <p class="text-xs text-[#A39281] mt-1">雲端同步模式：所有變更將實時同步給賓客。</p>
+            <p class="text-xs text-[#A39281] mt-1">拖曳桌子會即時自動存檔，切換前台即可即時同步。</p>
           </div>
           <button onclick="exportGuestCSV()" class="px-4 py-2 bg-white border border-[#ECE4DA] rounded-xl text-xs text-[#786A5C] hover:bg-[#F5EFE6] transition flex items-center gap-1 shadow-xs cursor-pointer">
             📄 匯出 CSV
           </button>
         </div>
 
-        <!-- 頂部 4 個數據卡片 -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-white border border-[#ECE4DA] rounded-2xl p-4 shadow-xs">
             <p class="text-[11px] text-[#A39281]">總桌數</p>
@@ -135,23 +182,21 @@
           </div>
         </div>
 
-        <!-- 分頁頁籤 -->
-        <div class="flex space-x-3 border-b border-[#ECE4DA] pb-2">
-          <button onclick="switchAdminTab('tables')" id="tabBtn-tables" class="px-5 py-2 rounded-full text-xs font-bold bg-[#A39281] text-white flex items-center gap-1.5 shadow-xs cursor-pointer">
+        <!-- 分頁標籤 -->
+        <div class="flex space-x-2 sm:space-x-3 border-b border-[#ECE4DA] pb-2 overflow-x-auto">
+          <button onclick="switchAdminTab('tables')" id="tabBtn-tables" class="px-4 sm:px-5 py-2 rounded-full text-xs font-bold bg-[#A39281] text-white flex items-center gap-1.5 shadow-xs cursor-pointer whitespace-nowrap">
             <span>🎎</span> 桌次與賓客
           </button>
-          <button onclick="switchAdminTab('canvas')" id="tabBtn-canvas" class="px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer">
+          <button onclick="switchAdminTab('canvas')" id="tabBtn-canvas" class="px-4 sm:px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap">
             <span>🎨</span> 編輯平面圖與紅毯
           </button>
-          <button onclick="switchAdminTab('info')" id="tabBtn-info" class="px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer">
+          <button onclick="switchAdminTab('info')" id="tabBtn-info" class="px-4 sm:px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap">
             <span>♥</span> 婚禮資訊與密碼
           </button>
         </div>
 
-        <!-- 頁籤內容：桌次與賓客 -->
+        <!-- 頁籤：桌次與賓客 -->
         <div id="tab-tables" class="space-y-6">
-          
-          <!-- 新增桌次卡片 -->
           <div class="bg-[#F9F7F2]/80 border border-[#ECE4DA] rounded-3xl p-6 shadow-sm space-y-4">
             <h2 class="text-sm font-bold text-[#52473C] flex items-center gap-1.5">
               <span>👨‍👩‍👧‍👦</span> 新增桌次
@@ -159,7 +204,7 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label class="text-[11px] text-[#A39281] block mb-1">桌號代碼 *</label>
-                <input type="text" id="addTableCode" placeholder="例如：A3" class="w-full p-2.5 bg-white border border-[#ECE4DA] rounded-xl text-xs focus:outline-none">
+                <input type="text" id="addTableCode" placeholder="例如：T10" class="w-full p-2.5 bg-white border border-[#ECE4DA] rounded-xl text-xs focus:outline-none">
               </div>
               <div>
                 <label class="text-[11px] text-[#A39281] block mb-1">桌次名稱 *</label>
@@ -174,11 +219,9 @@
               </div>
             </div>
 
-            <!-- 桌次列表 (雙欄佈局) -->
             <div id="adminTableCardGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2"></div>
           </div>
 
-          <!-- 新增單筆賓客卡片 -->
           <div class="bg-[#F9F7F2]/80 border border-[#ECE4DA] rounded-3xl p-6 shadow-sm space-y-4">
             <h2 class="text-sm font-bold text-[#52473C] flex items-center gap-1.5">
               <span>👤</span> 新增單筆賓客
@@ -201,9 +244,8 @@
               </div>
             </div>
 
-            <!-- 賓客名單列表 -->
-            <div class="mt-4 border border-[#ECE4DA] rounded-2xl bg-white overflow-hidden">
-              <table class="w-full text-xs text-left">
+            <div class="mt-4 border border-[#ECE4DA] rounded-2xl bg-white overflow-x-auto">
+              <table class="w-full text-xs text-left min-w-[400px]">
                 <thead class="bg-[#F9F7F2] text-[#A39281] border-b border-[#ECE4DA]">
                   <tr>
                     <th class="p-3">姓名</th>
@@ -216,23 +258,19 @@
               </table>
             </div>
           </div>
-
         </div>
 
-        <!-- 頁籤內容：編輯平面圖與紅毯 -->
+        <!-- 頁籤：編輯平面圖與紅毯 -->
         <div id="tab-canvas" class="hidden bg-[#F9F7F2]/80 border border-[#ECE4DA] rounded-3xl p-6 shadow-sm space-y-6">
-          
-          <!-- 頂部標題與儲存按鈕 -->
           <div class="flex justify-between items-center">
             <h2 class="text-sm font-bold text-[#52473C] flex items-center gap-2">
-              <span>🎨</span> 拖拽調整桌位與 L 型紅毯控制
+              <span>🎨</span> 調整桌位 (按住拖曳桌子) 與 L 型紅毯控制
             </h2>
             <button onclick="saveCanvasLayout()" class="px-5 py-2 bg-[#A39281] text-white rounded-xl text-xs font-bold hover:bg-[#8C7A6B] transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-              <span>💾</span> 儲存佈局至雲端
+              <span>💾</span> 手動儲存
             </button>
           </div>
 
-          <!-- L 型紅毯座標設定卡片 -->
           <div class="bg-white border border-[#ECE4DA] rounded-2xl p-4 shadow-xs space-y-3">
             <h3 class="text-xs font-bold text-[#786A5C] flex items-center gap-1.5">
               <span>📐</span> L 型紅毯座標設定：
@@ -271,14 +309,13 @@
             </div>
           </div>
 
-          <!-- 平面拖拽繪圖區 -->
-          <div class="relative w-full max-w-[500px] h-[750px] bg-white rounded-3xl border border-[#ECE4DA] shadow-inner overflow-hidden mx-auto">
-            <svg id="editorCarpetSvg" class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 500 800" preserveAspectRatio="none"></svg>
+          <div id="editorCanvasBox" class="relative w-full max-w-[500px] aspect-[5/7.5] bg-white rounded-3xl border border-[#ECE4DA] shadow-inner overflow-hidden mx-auto select-none touch-none">
+            <svg id="editorCarpetSvg" class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 500 750" preserveAspectRatio="xMidYMin meet"></svg>
             <div id="editorNodesContainer" class="absolute inset-0 w-full h-full"></div>
           </div>
         </div>
 
-        <!-- 頁籤內容：基本資訊 -->
+        <!-- 頁籤：基本資訊 -->
         <div id="tab-info" class="hidden bg-[#F9F7F2]/80 border border-[#ECE4DA] rounded-3xl p-6 shadow-sm space-y-4">
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -316,7 +353,7 @@
 
   <!-- 搜尋結果賓客卡片 Modal -->
   <div id="searchResultModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-    <div class="bg-[#FBF9F5] w-full max-w-sm rounded-3xl p-6 border border-[#ECE4DA] shadow-2xl space-y-5 text-center relative animate-fade-in">
+    <div class="bg-[#FBF9F5] w-full max-w-sm rounded-3xl p-6 border border-[#ECE4DA] shadow-2xl space-y-5 text-center relative">
       <button onclick="closeSearchModal()" class="absolute right-5 top-5 text-gray-400 hover:text-gray-600 text-lg cursor-pointer">✕</button>
       
       <div class="w-10 h-10 rounded-full bg-[#EFE8DF] flex items-center justify-center mx-auto text-sm text-[#A39281]">♥</div>
@@ -345,30 +382,29 @@
     </div>
   </div>
 
-  <footer class="mt-8 text-[11px] text-[#A39281] tracking-widest">
+  <footer class="mt-8 text-[11px] text-[#A39281] tracking-widest text-center">
     WEDDING SEATING ARRANGEMENT SYSTEM
   </footer>
 
-  <!-- 純 JavaScript 控制邏輯 -->
   <script>
     var defaultData = {
       info: { groom: "蘇鴻楷", bride: "吳亭蓉", dateTime: "2026.11.07(六)", location: "台南晶英酒店2樓", hall: "明倫仁德廳" },
       tables: [
-        { id: "M1", name: "主桌", category: "", top: 70, left: 210 },
-        { id: "L1", name: "女方長輩", category: "", top: 160, left: 110 },
-        { id: "R1", name: "男方長輩", category: "", top: 160, left: 310 },
-        { id: "L2", name: "女方親戚", category: "", top: 270, left: 50 },
-        { id: "R2", name: "男方親戚", category: "", top: 270, left: 370 },
-        { id: "L3", name: "女方好友", category: "", top: 380, left: 50 },
-        { id: "R3", name: "男方好友", category: "", top: 380, left: 370 },
-        { id: "L4", name: "新娘大學", category: "", top: 490, left: 110 },
-        { id: "R4", name: "新郎同事", category: "", top: 490, left: 290 }
+        { id: "T01", name: "主桌", category: "", top: 120, left: 250 },
+        { id: "T02", name: "女方長輩", category: "", top: 210, left: 160 },
+        { id: "T03", name: "男方長輩", category: "", top: 380, left: 360 },
+        { id: "T04", name: "女方親戚", category: "", top: 330, left: 200 },
+        { id: "T05", name: "男方親戚", category: "", top: 210, left: 320 },
+        { id: "T06", name: "女方好友", category: "", top: 330, left: 120 },
+        { id: "T07", name: "新郎同事", category: "", top: 330, left: 290 },
+        { id: "T08", name: "新娘大學", category: "", top: 480, left: 200 },
+        { id: "T09", name: "男方好友", category: "", top: 520, left: 320 }
       ],
       guests: [
-        { name: "蘇鴻楷", tableCode: "M1", note: "新郎" },
-        { name: "吳亭蓉", tableCode: "M1", note: "新娘" }
+        { name: "蘇鴻楷", tableCode: "T01", note: "新郎" },
+        { name: "吳亭蓉", tableCode: "T01", note: "新娘" }
       ],
-      lCarpet: { x1: 260, y1: 60, x2: 260, y2: 560, x3: 440, y3: 560, width: 24 },
+      lCarpet: { x1: 250, y1: 160, x2: 250, y2: 652, x3: 383, y3: 652, width: 20 },
       password: "1234"
     };
 
@@ -403,7 +439,6 @@
       document.getElementById('cfgHall').value = appData.info.hall || '';
       document.getElementById('cfgPassword').value = appData.password || "1234";
 
-      // 更新紅毯欄位數值
       var c = appData.lCarpet || defaultData.lCarpet;
       document.getElementById('carpetX1').value = c.x1;
       document.getElementById('carpetY1').value = c.y1;
@@ -413,7 +448,6 @@
       document.getElementById('carpetY3').value = c.y3;
       document.getElementById('carpetWidth').value = c.width;
 
-      // 更新統計卡片
       document.getElementById('statTotalTables').innerText = appData.tables.length;
       document.getElementById('statTotalGuests').innerText = appData.guests.length;
       document.getElementById('statCoupleNames').innerText = (appData.info.groom || '') + ' & ' + (appData.info.bride || '');
@@ -427,7 +461,7 @@
       var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
       polyline.setAttribute('points', c.x1 + ',' + c.y1 + ' ' + c.x2 + ',' + c.y2 + ' ' + c.x3 + ',' + c.y3);
       polyline.setAttribute('stroke', '#D8C5B3');
-      polyline.setAttribute('stroke-width', c.width || 24);
+      polyline.setAttribute('stroke-width', c.width || 20);
       polyline.setAttribute('stroke-linecap', 'round');
       polyline.setAttribute('fill', 'none');
       svg.appendChild(polyline);
@@ -435,17 +469,14 @@
       appData.tables.forEach(function(t) {
         var circle = document.createElement('div');
         circle.id = 'table-node-' + t.id;
-        circle.className = 'absolute rounded-full table-circle-node flex flex-col justify-center items-center text-center p-1 shadow-sm transition transform hover:scale-105';
-        circle.style.top = (t.top || 100) + 'px';
-        circle.style.left = (t.left || 100) + 'px';
-        circle.style.width = '70px';
-        circle.style.height = '70px';
-        circle.style.backgroundColor = '#FAF6F0';
-        circle.style.border = '1.5px solid #D8C5B3';
+        circle.className = 'absolute table-circle-item w-16 h-16 sm:w-20 sm:h-20 bg-[#FAF6F0] border-2 border-[#D8C5B3] flex flex-col justify-center items-center text-center p-1 shadow-md transition-transform';
+        
+        circle.style.top = ((t.top / 750) * 100) + '%';
+        circle.style.left = ((t.left / 500) * 100) + '%';
 
-        // 僅顯示桌次名稱與桌號代碼，不顯示人數與賓客資訊
-        circle.innerHTML = '<span class="text-xs font-bold font-serif-custom text-[#52473C] leading-tight truncate w-full px-1">' + t.name + '</span>' +
-                           '<span class="text-[9px] text-[#A39281] mt-0.5 font-mono">' + t.id + '</span>';
+        circle.innerHTML = '<span class="text-[10px] sm:text-xs font-bold font-serif-custom text-[#52473C] leading-tight truncate w-full px-0.5 pointer-events-none">' + t.name + '</span>' +
+                           '<span class="text-[8px] sm:text-[9px] text-[#A39281] mt-0.5 font-mono pointer-events-none">' + t.id + '</span>';
+
         container.appendChild(circle);
       });
     }
@@ -476,8 +507,44 @@
       }
     }
 
+    function handleSearchLive() {
+      var keyword = document.getElementById('frontendSearchInput').value.trim().toLowerCase();
+      var dropdown = document.getElementById('searchDropdown');
+
+      if (!keyword) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+      }
+
+      var matches = appData.guests.filter(function(g) {
+        return g.name && g.name.toLowerCase().indexOf(keyword) !== -1;
+      });
+
+      if (matches.length > 0) {
+        dropdown.innerHTML = matches.map(function(g) {
+          var tableObj = appData.tables.find(function(t) { return t.id === g.tableCode; });
+          var tableName = tableObj ? tableObj.name : g.tableCode;
+          return '<div onclick="selectGuestFromDropdown(\'' + g.name + '\')" class="px-4 py-2.5 text-xs text-left hover:bg-[#F9F7F2] cursor-pointer flex justify-between items-center border-b border-[#ECE4DA] last:border-none">' +
+                   '<span class="font-bold text-[#52473C]">' + g.name + '</span>' +
+                   '<span class="text-[10px] bg-[#EFE8DF] text-[#786A5C] px-2 py-0.5 rounded-full font-mono">' + tableName + ' (' + g.tableCode + ')</span>' +
+                 '</div>';
+        }).join('');
+        dropdown.classList.remove('hidden');
+      } else {
+        dropdown.classList.add('hidden');
+      }
+    }
+
+    function selectGuestFromDropdown(name) {
+      document.getElementById('frontendSearchInput').value = name;
+      document.getElementById('searchDropdown').classList.add('hidden');
+      handleSearch();
+    }
+
     function handleSearch() {
       var keyword = document.getElementById('frontendSearchInput').value.trim().toLowerCase();
+      document.getElementById('searchDropdown').classList.add('hidden');
       if (!keyword) return;
 
       var matched = appData.guests.find(function(g) { return g.name && g.name.toLowerCase().indexOf(keyword) !== -1; });
@@ -499,12 +566,16 @@
 
     function locateSearchedTable() {
       closeSearchModal();
-      document.querySelectorAll('.table-circle-node').forEach(function(el) { el.classList.remove('table-highlight'); });
+      document.querySelectorAll('.table-circle-item').forEach(function(el) { el.classList.remove('table-highlight'); });
+
       if (currentTargetTableId) {
         var target = document.getElementById('table-node-' + currentTargetTableId);
         if (target) {
-          target.classList.add('table-highlight');
           target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.classList.add('table-highlight');
+          setTimeout(function() {
+            target.classList.remove('table-highlight');
+          }, 4000);
         }
       }
     }
@@ -519,11 +590,11 @@
         var btnEl = document.getElementById('tabBtn-' + t);
         if (t === tabName) {
           tabEl.classList.remove('hidden');
-          btnEl.className = "px-5 py-2 rounded-full text-xs font-bold bg-[#A39281] text-white flex items-center gap-1.5 shadow-xs cursor-pointer";
+          btnEl.className = "px-4 sm:px-5 py-2 rounded-full text-xs font-bold bg-[#A39281] text-white flex items-center gap-1.5 shadow-xs cursor-pointer whitespace-nowrap";
           if (t === 'canvas') renderEditorMap();
         } else {
           tabEl.classList.add('hidden');
-          btnEl.className = "px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer";
+          btnEl.className = "px-4 sm:px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap";
         }
       });
     }
@@ -561,22 +632,22 @@
         var tableObj = appData.tables.find(function(t) { return t.id === g.tableCode; });
         var tableName = tableObj ? tableObj.name : g.tableCode;
         var tr = document.createElement('tr');
-        tr.className = "border-b border-[#ECE4DA] hover:bg-[#F9F7F2]/50";
+        tr.className = "border-b border-[#ECE4DA] last:border-none hover:bg-[#FDFCF9]";
         tr.innerHTML = '<td class="p-3 font-bold text-[#52473C]">' + g.name + '</td>' +
-                       '<td class="p-3 text-[#786A5C]">' + tableName + ' (' + g.tableCode + ')</td>' +
+                       '<td class="p-3">' + tableName + ' <span class="text-[10px] font-mono text-[#A39281]">(' + g.tableCode + ')</span></td>' +
                        '<td class="p-3 text-[#A39281]">' + (g.note || '-') + '</td>' +
-                       '<td class="p-3 text-right"><button onclick="deleteGuest(' + idx + ')" class="text-red-500 hover:underline cursor-pointer">刪除</button></td>';
+                       '<td class="p-3 text-right"><button onclick="deleteGuest(' + idx + ')" class="text-red-400 hover:text-red-600 font-bold cursor-pointer">刪除</button></td>';
         tbody.appendChild(tr);
       });
     }
 
     function addNewTable() {
-      var id = document.getElementById('addTableCode').value.trim();
+      var code = document.getElementById('addTableCode').value.trim();
       var name = document.getElementById('addTableName').value.trim();
-      var category = document.getElementById('addTableCategory').value.trim();
-      if (!id || !name) return alert("請填寫桌號代碼與桌次名稱");
+      var cat = document.getElementById('addTableCategory').value.trim();
+      if (!code || !name) { alert("請填寫桌號代碼與名稱！"); return; }
       
-      appData.tables.push({ id: id, name: name, category: category, top: 150, left: 150 });
+      appData.tables.push({ id: code, name: name, category: cat, top: 350, left: 250 });
       saveData();
       refreshAdminData();
       document.getElementById('addTableCode').value = '';
@@ -584,12 +655,20 @@
       document.getElementById('addTableCategory').value = '';
     }
 
+    function deleteTable(id) {
+      if (confirm("確定要刪除此桌次嗎？")) {
+        appData.tables = appData.tables.filter(function(t) { return t.id !== id; });
+        saveData();
+        refreshAdminData();
+      }
+    }
+
     function addNewGuest() {
       var name = document.getElementById('addGuestName').value.trim();
       var tableCode = document.getElementById('addGuestTableSelect').value;
       var note = document.getElementById('addGuestNote').value.trim();
-      if (!name) return alert("請填寫賓客姓名");
-      
+      if (!name) { alert("請輸入賓客姓名！"); return; }
+
       appData.guests.push({ name: name, tableCode: tableCode, note: note });
       saveData();
       refreshAdminData();
@@ -597,33 +676,15 @@
       document.getElementById('addGuestNote').value = '';
     }
 
-    function deleteTable(id) {
-      if (!confirm("確定要刪除此桌次嗎？")) return;
-      appData.tables = appData.tables.filter(function(t) { return t.id !== id; });
-      saveData();
-      refreshAdminData();
+    function deleteGuest(index) {
+      if (confirm("確定要刪除此賓客嗎？")) {
+        appData.guests.splice(index, 1);
+        saveData();
+        refreshAdminData();
+      }
     }
 
-    function deleteGuest(idx) {
-      appData.guests.splice(idx, 1);
-      saveData();
-      refreshAdminData();
-    }
-
-    function updateCarpetFromInputs() {
-      appData.lCarpet = {
-        x1: parseInt(document.getElementById('carpetX1').value) || 260,
-        y1: parseInt(document.getElementById('carpetY1').value) || 60,
-        x2: parseInt(document.getElementById('carpetX2').value) || 260,
-        y2: parseInt(document.getElementById('carpetY2').value) || 560,
-        x3: parseInt(document.getElementById('carpetX3').value) || 440,
-        y3: parseInt(document.getElementById('carpetY3').value) || 560,
-        width: parseInt(document.getElementById('carpetWidth').value) || 24
-      };
-      saveData();
-      renderEditorMap();
-    }
-
+    /* 渲染後台編輯畫布 */
     function renderEditorMap() {
       var container = document.getElementById('editorNodesContainer');
       var svg = document.getElementById('editorCarpetSvg');
@@ -634,74 +695,142 @@
       var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
       polyline.setAttribute('points', c.x1 + ',' + c.y1 + ' ' + c.x2 + ',' + c.y2 + ' ' + c.x3 + ',' + c.y3);
       polyline.setAttribute('stroke', '#D8C5B3');
-      polyline.setAttribute('stroke-width', c.width || 24);
+      polyline.setAttribute('stroke-width', c.width || 20);
       polyline.setAttribute('stroke-linecap', 'round');
       polyline.setAttribute('fill', 'none');
       svg.appendChild(polyline);
 
       appData.tables.forEach(function(t) {
         var circle = document.createElement('div');
-        circle.className = 'absolute rounded-full table-circle-node flex flex-col justify-center items-center text-center p-1 shadow-md cursor-grab bg-[#FAF6F0] border border-[#D8C5B3]';
-        circle.style.top = t.top + 'px';
-        circle.style.left = t.left + 'px';
-        circle.style.width = '60px';
-        circle.style.height = '60px';
-        circle.innerHTML = '<span class="text-xs font-bold">' + t.name + '</span><span class="text-[9px] text-[#A39281] font-mono">' + t.id + '</span>';
+        circle.className = 'absolute table-circle-item w-16 h-16 sm:w-20 sm:h-20 bg-white border-2 border-[#B09F8C] flex flex-col justify-center items-center text-center p-1 shadow-md cursor-grab active:cursor-grabbing hover:scale-105 transition-transform';
+        circle.style.top = ((t.top / 750) * 100) + '%';
+        circle.style.left = ((t.left / 500) * 100) + '%';
 
-        var startX, startY;
-        circle.onpointerdown = function(e) {
-          startX = e.clientX - t.left;
-          startY = e.clientY - t.top;
-          circle.setPointerCapture(e.pointerId);
+        circle.innerHTML = '<span class="text-[10px] sm:text-xs font-bold text-[#52473C] leading-tight truncate w-full px-0.5 pointer-events-none">' + t.name + '</span>' +
+                           '<span class="text-[8px] sm:text-[9px] text-[#A39281] font-mono pointer-events-none">' + t.id + '</span>';
 
-          circle.onpointermove = function(em) {
-            t.left = Math.max(0, Math.min(420, em.clientX - startX));
-            t.top = Math.max(0, Math.min(680, em.clientY - startY));
-            circle.style.left = t.left + 'px';
-            circle.style.top = t.top + 'px';
-          };
+        makeElementDraggable(circle, t);
 
-          circle.onpointerup = function(eu) {
-            circle.releasePointerCapture(eu.pointerId);
-            circle.onpointermove = null;
-            circle.onpointerup = null;
-            saveData();
-          };
-        };
         container.appendChild(circle);
       });
     }
 
+    /* 核心修復：極致穩定的拖曳與即時自動存檔機制 */
+    function makeElementDraggable(element, tableData) {
+      var canvasBox = document.getElementById('editorCanvasBox');
+
+      function onStart(e) {
+        if (e.touches && e.touches.length > 1) return; // 忽略雙指縮放手勢
+        
+        e.preventDefault();
+        element.classList.add('is-dragging');
+
+        var rect = canvasBox.getBoundingClientRect();
+        var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // 當前畫布真實像素大小與座標比率
+        var currentCanvasX = (tableData.left / 500) * rect.width;
+        var currentCanvasY = (tableData.top / 750) * rect.height;
+
+        var startTouchX = clientX - rect.left;
+        var startTouchY = clientY - rect.top;
+
+        // 計算按下點相對於桌子中心的位移
+        var offsetX = startTouchX - currentCanvasX;
+        var offsetY = startTouchY - currentCanvasY;
+
+        function onMove(moveEvent) {
+          moveEvent.preventDefault();
+          var moveClientX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
+          var moveClientY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
+
+          var currentRect = canvasBox.getBoundingClientRect();
+          var rawX = moveClientX - currentRect.left - offsetX;
+          var rawY = moveClientY - currentRect.top - offsetY;
+
+          // 計算並限制在 500 x 750 的設計空間內
+          var posX = Math.round((rawX / currentRect.width) * 500);
+          var posY = Math.round((rawY / currentRect.height) * 750);
+
+          // 邊界保護 (限制在畫布內，留 25px 邊距)
+          posX = Math.max(25, Math.min(475, posX));
+          posY = Math.max(25, Math.min(725, posY));
+
+          tableData.left = posX;
+          tableData.top = posY;
+
+          element.style.left = ((tableData.left / 500) * 100) + '%';
+          element.style.top = ((tableData.top / 750) * 100) + '%';
+        }
+
+        function onEnd(endEvent) {
+          element.classList.remove('is-dragging');
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onEnd);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('touchend', onEnd);
+
+          // 放開手指/滑鼠時【立即存檔】，防止座標丟失或還原
+          saveData();
+        }
+
+        window.addEventListener('mousemove', onMove, { passive: false });
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
+      }
+
+      element.addEventListener('mousedown', onStart);
+      element.addEventListener('touchstart', onStart, { passive: false });
+    }
+
+    function updateCarpetFromInputs() {
+      appData.lCarpet = {
+        x1: parseInt(document.getElementById('carpetX1').value) || 250,
+        y1: parseInt(document.getElementById('carpetY1').value) || 160,
+        x2: parseInt(document.getElementById('carpetX2').value) || 250,
+        y2: parseInt(document.getElementById('carpetY2').value) || 652,
+        x3: parseInt(document.getElementById('carpetX3').value) || 383,
+        y3: parseInt(document.getElementById('carpetY3').value) || 652,
+        width: parseInt(document.getElementById('carpetWidth').value) || 20
+      };
+      renderEditorMap();
+      saveData();
+    }
+
     function saveCanvasLayout() {
       saveData();
-      alert("已成功儲存平面圖佈局與紅毯控制設定！");
+      alert("桌位與紅毯佈局已成功儲存！");
     }
 
     function saveWeddingInfo() {
-      appData.info = {
-        groom: document.getElementById('cfgGroom').value.trim(),
-        bride: document.getElementById('cfgBride').value.trim(),
-        dateTime: document.getElementById('cfgDateTime').value.trim(),
-        location: document.getElementById('cfgLocation').value.trim(),
-        hall: document.getElementById('cfgHall').value.trim()
-      };
+      appData.info.groom = document.getElementById('cfgGroom').value.trim();
+      appData.info.bride = document.getElementById('cfgBride').value.trim();
+      appData.info.dateTime = document.getElementById('cfgDateTime').value.trim();
+      appData.info.location = document.getElementById('cfgLocation').value.trim();
+      appData.info.hall = document.getElementById('cfgHall').value.trim();
       appData.password = document.getElementById('cfgPassword').value.trim() || "1234";
+      
       saveData();
-      alert("已成功更新基本資訊與密碼！");
+      alert("婚禮基本資訊與密碼已更新！");
     }
 
     function exportGuestCSV() {
-      var csv = "\uFEFF姓名,桌號代碼,備註\n";
-      appData.guests.forEach(function(g) { csv += '"' + g.name + '","' + g.tableCode + '","' + (g.note || '') + '"\n'; });
-      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      var csvStr = "\uFEFF姓名,席位桌號,備註\n";
+      appData.guests.forEach(function(g) {
+        csvStr += '"' + g.name + '","' + g.tableCode + '","' + (g.note || '') + '"\n';
+      });
+      var blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
       var link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "wedding_guests.csv";
+      link.download = "賓客名單.csv";
       link.click();
     }
 
-    // 初始化渲染
-    renderFrontend();
+    window.onload = function() {
+      renderFrontend();
+    };
   </script>
 </body>
 </html>
