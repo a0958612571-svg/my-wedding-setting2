@@ -81,54 +81,48 @@
       statusEl.className = "text-[10px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200";
     }
   }
-</script>
-  <script type="module">
+  <!-- ⚠️ 請確保 JavaScript 程式碼包裹在 <script type="module"> 與 </script> 之間 -->
+<script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-    // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
-const firebaseConfig = {
-  apiKey: "AIzaSyBfVUH9KVZUybFtMPA-0Ol28pJURTjzHCQ",
-  authDomain: "wedding-seating-f074d.firebaseapp.com",
-  databaseURL: "https://wedding-seating-f074d-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "wedding-seating-f074d",
-  storageBucket: "wedding-seating-f074d.firebasestorage.app",
-  messagingSenderId: "520607155146",
-  appId: "1:520607155146:web:63c21d1c3ad14a3cc6c533",
-  measurementId: "G-GQMK6BF9YC"
-    };
 
-    // 初始化 Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const dbRef = ref(db, 'wedding_seating');
+  // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
+  const firebaseConfig = {
+    apiKey: "AIzaSyBfVUH9KVZuybfTmPA-OOI28pJURTjzHCQ",
+    authDomain: "wedding-seating-f074d.firebaseapp.com",
+    databaseURL: "https://wedding-seating-f074d-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "wedding-seating-f074d",
+    storageBucket: "wedding-seating-f074d.firebasestorage.app",
+    messagingSenderId: "520607155146",
+    appId: "1:520607155146:web:63c21d1c3ad14a3cc6c533",
+    measurementId: "G-GQMK6BF9YC"
+  };
 
-    // 將 Firebase 實體掛載到 window 供全域函數使用
-    window.db = db;
-    window.dbRef = dbRef;
-    window.setDatabaseData = (data) => set(dbRef, data);
+  // 初始化 Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dbRef = ref(db, 'wedding_seating');
 
-    // 即時監聽雲端資料變更 (雙向同步核心)
-    onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        window.appData = data;
-      } else {
-        // 若雲端尚無資料，寫入預設初值
-        window.setDatabaseData(window.defaultData);
-        window.appData = window.defaultData;
-      }
-      // 收到最新資料後重新渲染畫面
-      if (window.renderFrontend) window.renderFrontend();
-      if (window.refreshAdminData) window.refreshAdminData();
-      if (window.renderEditorMap) window.renderEditorMap();
-      
-      const statusEl = document.getElementById('syncStatus');
-      if (statusEl) {
-        statusEl.innerText = "🟢 雲端同步中";
-        statusEl.className = "text-[10px] text-green-600 font-bold bg-green-50 px-2.5 py-1 rounded-full border border-green-200";
-      }
-    });
-  </script>
+  // 將 Firebase 實體掛載到 window 供全域函數使用
+  window.db = db;
+  window.dbRef = dbRef;
+  window.setDatabaseData = (data) => set(dbRef, data);
+
+  // 即時監聽雲端資料變更 (雙向同步核心)
+  onValue(dbRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      window.appData = data;
+    } else {
+      // 若雲端尚無資料，寫入預設初值
+      window.setDatabaseData(window.defaultData);
+      window.appData = window.defaultData;
+    }
+    // 收到最新資料後重新渲染畫面
+    if (window.renderFrontend) window.renderFrontend();
+    if (window.renderBackend) window.renderBackend();
+  });
+</script>
 
   <style>
     html, body {
