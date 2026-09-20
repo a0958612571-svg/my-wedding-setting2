@@ -84,9 +84,8 @@
   <!-- ⚠️ 請確保 JavaScript 程式碼包裹在 <script type="module"> 與 </script> 之間 -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import { getDatabase, ref, onValue, set, initializeDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
   const firebaseConfig = {
     apiKey: "AIzaSyBfVUH9KVZuybfTmPA-OOI28pJURTjzHCQ",
     authDomain: "wedding-seating-f074d.firebaseapp.com",
@@ -98,29 +97,69 @@
     measurementId: "G-GQMK6BF9YC"
   };
 
-  // 初始化 Firebase
+  // 1. 初始化 Firebase，並設定強制 Long-Polling（解決手機 WebSocket 被擋問題）
   const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  const db = initializeDatabase(app, {
+    databaseURL: firebaseConfig.databaseURL,
+    forceLongPolling: true // 👈 關鍵修正：解決手機行動網路 WebSocket 卡連線問題
+  });
+
   const dbRef = ref(db, 'wedding_seating');
 
-  // 將 Firebase 實體掛載到 window 供全域函數使用
   window.db = db;
   window.dbRef = dbRef;
   window.setDatabaseData = (data) => set(dbRef, data);
 
-  // 即時監聽雲端資料變更 (雙向同步核心)
+  // 更新 UI 上面的連線狀態燈號標籤
+  function updateConnectionStatus(isConnected) {
+    const statusBadges = document.querySelectorAll('.connection-status-badge'); // 請確保您的狀態標籤有此 class，或依實際 ID 修改
+    statusBadges.forEach(badge => {
+      if (isConnected) {
+        badge.innerHTML = '🟢 雲端同步中';
+        badge.className = 'connection-status-badge text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200';
+      } else {
+        badge.innerHTML = '🟡 離線/連線中...';
+        badge.className = 'connection-status-badge text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200';
+      }
+    });
+  }
+
+  // 2. 監聽 Firebase 網路連線狀態 (.info/connected)
+  const connectedRef = ref(db, ".info/connected");
+  onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      updateConnectionStatus(true);
+    } else {
+      updateConnectionStatus(false);
+    }
+  });
+
+  // 3. 3秒逾時保護：避免手機載入過久
+  let dataLoaded = false;
+  setTimeout(() => {
+    if (!dataLoaded) {
+      console.warn("Firebase 連線逾時，載入預設資料");
+      if (!window.appData) window.appData = window.defaultData;
+      if (window.renderFrontend) window.renderFrontend();
+      if (window.renderBackend) window.renderBackend();
+    }
+  }, 3000);
+
+  // 4. 即時監聽資料
   onValue(dbRef, (snapshot) => {
+    dataLoaded = true;
     const data = snapshot.val();
     if (data) {
       window.appData = data;
     } else {
-      // 若雲端尚無資料，寫入預設初值
       window.setDatabaseData(window.defaultData);
       window.appData = window.defaultData;
     }
-    // 收到最新資料後重新渲染畫面
     if (window.renderFrontend) window.renderFrontend();
     if (window.renderBackend) window.renderBackend();
+  }, (error) => {
+    console.error("Firebase 資料讀取失敗：", error);
+    updateConnectionStatus(false);
   });
 </script>
 
