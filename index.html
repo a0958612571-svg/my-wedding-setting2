@@ -81,16 +81,12 @@
       statusEl.className = "text-[10px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200";
     }
   }
-  <!-- ⚠️ 請確保 JavaScript 程式碼包裹在 <script type="module"> 與 </script> 之間 -->
+ <!-- ⚠️ 請確保 JavaScript 程式碼包裹在 <script type="module"> 與 </script> 之間 -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  // 全域除錯：若手機出現報錯，會自動印在畫面上
-  window.addEventListener('error', (e) => {
-    console.error("頁面運行錯誤：", e.message);
-  });
-
+  // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
   const firebaseConfig = {
     apiKey: "AIzaSyBfVUH9KVZuybfTmPA-OOI28pJURTjzHCQ",
     authDomain: "wedding-seating-f074d.firebaseapp.com",
@@ -102,65 +98,34 @@
     measurementId: "G-GQMK6BF9YC"
   };
 
-  let app, db, dbRef;
+  // 初始化 Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dbRef = ref(db, 'wedding_seating');
 
-  try {
-    app = initializeApp(firebaseConfig);
-    db = getDatabase(app);
-    dbRef = ref(db, 'wedding_seating');
+  // 將 Firebase 實體掛載到 window 供全域函數使用
+  window.db = db;
+  window.dbRef = dbRef;
+  window.setDatabaseData = (data) => set(dbRef, data);
 
-    window.db = db;
-    window.dbRef = dbRef;
-    window.setDatabaseData = (data) => set(dbRef, data);
-
-    // 1. 監聽 Firebase 連線狀態
-    const connectedRef = ref(db, ".info/connected");
-    onValue(connectedRef, (snap) => {
-      const isConnected = snap.val() === true;
-      updateStatusBadge(isConnected);
-    });
-
-    // 2. 監聽資料變更
-    onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        window.appData = data;
-      } else {
-        // 若資料庫為空，寫入預設值
-        if (window.defaultData) {
-          window.setDatabaseData(window.defaultData);
-          window.appData = window.defaultData;
-        }
-      }
-      renderAll();
-    }, (error) => {
-      console.error("Firebase 連線讀取失敗：", error);
-      updateStatusBadge(false);
-    });
-
-  } catch (err) {
-    console.error("Firebase 初始化失敗：", err);
-  }
-
-  // 更新頂部狀態燈號
-  function updateStatusBadge(isConnected) {
-    const badges = document.querySelectorAll('.connection-status-badge');
-    badges.forEach(b => {
-      if (isConnected) {
-        b.textContent = "🟢 雲端同步中";
-        b.className = "connection-status-badge px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700 font-medium";
-      } else {
-        b.textContent = "🟡 連線中...";
-        b.className = "connection-status-badge px-3 py-1 text-xs rounded-full bg-amber-100 text-amber-700 font-medium";
-      }
-    });
-  }
-
-  function renderAll() {
-    if (typeof window.renderFrontend === 'function') window.renderFrontend();
-    if (typeof window.renderBackend === 'function') window.renderBackend();
-  }
+  // 即時監聽雲端資料變更 (雙向同步核心)
+  onValue(dbRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      window.appData = data;
+    } else {
+      // 若雲端尚無資料，寫入預設初值
+      window.setDatabaseData(window.defaultData);
+      window.appData = window.defaultData;
+    }
+    // 收到最新資料後重新渲染畫面
+    if (window.renderFrontend) window.renderFrontend();
+    if (window.renderBackend) window.renderBackend();
+  });
 </script>
+
+</body>
+</html>
   <style>
     html, body {
       width: 100%;
