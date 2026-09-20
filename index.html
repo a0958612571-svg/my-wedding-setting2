@@ -82,6 +82,9 @@
     }
   }
 </script>
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
     // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
 const firebaseConfig = {
   apiKey: "AIzaSyBfVUH9KVZUybFtMPA-0Ol28pJURTjzHCQ",
