@@ -9,8 +9,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   
-  <!-- Firebase SDK (v9 模組化引入) -->
-  <script type="module">
+    <!-- 請確保這段 JavaScript 程式碼完全被 <script type="module"> 包裹 -->
+<script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -81,51 +81,8 @@
       statusEl.className = "text-[10px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200";
     }
   }
- <!-- ⚠️ 請確保 JavaScript 程式碼包裹在 <script type="module"> 與 </script> 之間 -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-  // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
-  const firebaseConfig = {
-    apiKey: "AIzaSyBfVUH9KVZuybfTmPA-OOI28pJURTjzHCQ",
-    authDomain: "wedding-seating-f074d.firebaseapp.com",
-    databaseURL: "https://wedding-seating-f074d-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "wedding-seating-f074d",
-    storageBucket: "wedding-seating-f074d.firebasestorage.app",
-    messagingSenderId: "520607155146",
-    appId: "1:520607155146:web:63c21d1c3ad14a3cc6c533",
-    measurementId: "G-GQMK6BF9YC"
-  };
-
-  // 初始化 Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const dbRef = ref(db, 'wedding_seating');
-
-  // 將 Firebase 實體掛載到 window 供全域函數使用
-  window.db = db;
-  window.dbRef = dbRef;
-  window.setDatabaseData = (data) => set(dbRef, data);
-
-  // 即時監聽雲端資料變更 (雙向同步核心)
-  onValue(dbRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      window.appData = data;
-    } else {
-      // 若雲端尚無資料，寫入預設初值
-      window.setDatabaseData(window.defaultData);
-      window.appData = window.defaultData;
-    }
-    // 收到最新資料後重新渲染畫面
-    if (window.renderFrontend) window.renderFrontend();
-    if (window.renderBackend) window.renderBackend();
-  });
 </script>
 
-</body>
-</html>
   <style>
     html, body {
       width: 100%;
@@ -666,42 +623,22 @@
 
       if (matched) {
         var tableObj = (window.appData.tables || []).find(function(t) { return t.id === matched.tableCode; });
-        var tableName = tableObj ? tableObj.name : matched.tableCode;
-        
         currentTargetTableId = matched.tableCode;
 
-        document.getElementById('modalGuestName').innerText = matched.name + ' 貴賓';
-        
+        document.getElementById('modalGuestName').innerText = matched.name;
         var tagEl = document.getElementById('modalGuestTag');
         if (matched.tag) {
-          tagEl.innerText = '🏷️ 分類標籤：' + matched.tag;
+          tagEl.innerText = matched.tag;
           tagEl.classList.remove('hidden');
         } else {
           tagEl.classList.add('hidden');
         }
 
-        document.getElementById('modalTableName').innerText = tableName;
-        document.getElementById('modalTableCode').innerText = '桌號代碼 : ' + matched.tableCode;
-        
+        document.getElementById('modalTableName').innerText = tableObj ? tableObj.name : matched.tableCode;
+        document.getElementById('modalTableCode').innerText = "桌號 " + matched.tableCode;
         document.getElementById('searchResultModal').classList.remove('hidden');
       } else {
-        alert("查無此賓客姓名，請確認輸入是否正確。");
-      }
-    }
-
-    function locateSearchedTable() {
-      closeSearchModal();
-      document.querySelectorAll('.table-circle-item').forEach(function(el) { el.classList.remove('table-highlight'); });
-
-      if (currentTargetTableId) {
-        var target = document.getElementById('table-node-' + currentTargetTableId);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          target.classList.add('table-highlight');
-          setTimeout(function() {
-            target.classList.remove('table-highlight');
-          }, 4500);
-        }
+        alert("查無「" + keyword + "」賓客資料，請確認姓名是否正確。");
       }
     }
 
@@ -709,69 +646,77 @@
       document.getElementById('searchResultModal').classList.add('hidden');
     }
 
-    function switchAdminTab(tabName) {
+    function locateSearchedTable() {
+      closeSearchModal();
+      if (!currentTargetTableId) return;
+
+      var allNodes = document.querySelectorAll('.table-circle-item');
+      allNodes.forEach(function(n) { n.classList.remove('table-highlight'); });
+
+      var targetNode = document.getElementById('table-node-' + currentTargetTableId);
+      if (targetNode) {
+        targetNode.classList.add('table-highlight');
+        targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        setTimeout(function() {
+          targetNode.classList.remove('table-highlight');
+        }, 8000);
+      }
+    }
+
+    function switchAdminTab(tab) {
       ['tables', 'canvas', 'info'].forEach(function(t) {
-        var el = document.getElementById('tab-' + t);
+        document.getElementById('tab-' + t).classList.add('hidden');
         var btn = document.getElementById('tabBtn-' + t);
-        if (t === tabName) {
-          el.classList.remove('hidden');
-          btn.className = "px-4 sm:px-5 py-2 rounded-full text-xs font-bold bg-[#A39281] text-white flex items-center gap-1.5 shadow-xs cursor-pointer whitespace-nowrap";
-        } else {
-          el.classList.add('hidden');
-          btn.className = "px-4 sm:px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap";
-        }
+        btn.className = "px-4 sm:px-5 py-2 rounded-full text-xs text-[#786A5C] hover:bg-[#EFE8DF] flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap";
       });
 
-      if (tabName === 'canvas') {
+      document.getElementById('tab-' + tab).classList.remove('hidden');
+      var activeBtn = document.getElementById('tabBtn-' + tab);
+      activeBtn.className = "px-4 sm:px-5 py-2 rounded-full text-xs font-bold bg-[#A39281] text-white flex items-center gap-1.5 shadow-xs cursor-pointer whitespace-nowrap";
+
+      if (tab === 'canvas') {
         renderEditorMap();
       }
     }
 
     function refreshAdminData() {
       if (!window.appData) return;
+      var data = window.appData;
 
-      var grid = document.getElementById('adminTableCardGrid');
+      // 下拉選單
       var select = document.getElementById('addGuestTableSelect');
+      select.innerHTML = (data.tables || []).map(function(t) {
+        return '<option value="' + t.id + '">' + t.name + ' (' + t.id + ')</option>';
+      }).join('');
+
+      // 桌次列表
+      var grid = document.getElementById('adminTableCardGrid');
+      grid.innerHTML = (data.tables || []).map(function(t) {
+        var count = (data.guests || []).filter(function(g) { return g.tableCode === t.id; }).length;
+        return '<div class="bg-white border border-[#ECE4DA] rounded-2xl p-3 flex justify-between items-center shadow-xs">' +
+                 '<div>' +
+                   '<span class="font-bold text-xs text-[#52473C]">' + t.name + '</span> ' +
+                   '<span class="text-[10px] text-[#A39281] font-mono">(' + t.id + ')</span>' +
+                   '<div class="text-[10px] text-[#8C7A6B] mt-0.5">' + (t.category || '未分類') + ' • ' + count + ' 人</div>' +
+                 '</div>' +
+                 '<button onclick="deleteTable(\'' + t.id + '\')" class="text-xs text-red-400 hover:text-red-600 px-2 py-1">刪除</button>' +
+               '</div>';
+      }).join('');
+
+      // 賓客列表
       var tbody = document.getElementById('adminGuestTableBody');
-
-      grid.innerHTML = '';
-      select.innerHTML = '';
-      tbody.innerHTML = '';
-
-      (window.appData.tables || []).forEach(function(t) {
-        var count = (window.appData.guests || []).filter(function(g) { return g.tableCode === t.id; }).length;
-
-        var card = document.createElement('div');
-        card.className = "bg-white border border-[#ECE4DA] rounded-2xl p-3 shadow-xs flex justify-between items-center";
-        card.innerHTML = '<div>' +
-                           '<div class="flex items-center gap-2">' +
-                             '<span class="font-bold text-xs text-[#52473C]">' + t.name + '</span>' +
-                             '<span class="text-[10px] bg-[#EFE8DF] text-[#786A5C] px-1.5 py-0.5 rounded font-mono">' + t.id + '</span>' +
-                           '</div>' +
-                           '<p class="text-[10px] text-[#A39281] mt-1">' + (t.category ? t.category + ' • ' : '') + '目前人數：' + count + ' 人</p>' +
-                         '</div>' +
-                         '<button onclick="deleteTable(\'' + t.id + '\')" class="text-xs text-red-400 hover:text-red-600 px-2 py-1 cursor-pointer">刪除</button>';
-        grid.appendChild(card);
-
-        var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.innerText = t.name + ' (' + t.id + ')';
-        select.appendChild(opt);
-      });
-
-      (window.appData.guests || []).forEach(function(g, idx) {
-        var tableObj = (window.appData.tables || []).find(function(t) { return t.id === g.tableCode; });
+      tbody.innerHTML = (data.guests || []).map(function(g, idx) {
+        var tableObj = (data.tables || []).find(function(t) { return t.id === g.tableCode; });
         var tableName = tableObj ? tableObj.name : g.tableCode;
-
-        var tr = document.createElement('tr');
-        tr.className = "border-b border-[#ECE4DA] hover:bg-[#FDFBF7]";
-        tr.innerHTML = '<td class="p-3 font-bold text-[#52473C]">' + g.name + '</td>' +
-                       '<td class="p-3 text-[#786A5C]">' + tableName + ' <span class="text-[10px] text-[#A39281]">(' + g.tableCode + ')</span></td>' +
-                       '<td class="p-3"><span class="px-2 py-0.5 text-[10px] bg-amber-50 text-amber-700 rounded-full border border-amber-200">' + (g.tag || '無') + '</span></td>' +
-                       '<td class="p-3 text-[#A39281]">' + (g.note || '--') + '</td>' +
-                       '<td class="p-3 text-right"><button onclick="deleteGuest(' + idx + ')" class="text-red-400 hover:text-red-600 cursor-pointer">刪除</button></td>';
-        tbody.appendChild(tr);
-      });
+        return '<tr class="border-b border-[#ECE4DA] hover:bg-[#FDFBF7]">' +
+                 '<td class="p-3 font-bold text-[#52473C]">' + g.name + '</td>' +
+                 '<td class="p-3 text-[#786A5C]">' + tableName + ' <span class="font-mono text-[10px] text-[#A39281]">(' + g.tableCode + ')</span></td>' +
+                 '<td class="p-3 text-[#8C7A6B]">' + (g.tag || '-') + '</td>' +
+                 '<td class="p-3 text-[#8C7A6B]">' + (g.note || '-') + '</td>' +
+                 '<td class="p-3 text-right"><button onclick="deleteGuest(' + idx + ')" class="text-red-400 hover:text-red-600">刪除</button></td>' +
+               '</tr>';
+      }).join('');
     }
 
     function addNewTable() {
@@ -784,33 +729,20 @@
         return;
       }
 
-      window.appData.tables = window.appData.tables || [];
-      if (window.appData.tables.some(function(t) { return t.id === code; })) {
-        alert("此桌號代碼已存在！");
-        return;
-      }
-
-      window.appData.tables.push({
-        id: code,
-        name: name,
-        category: cat,
-        top: 375,
-        left: 250
-      });
+      if (!window.appData.tables) window.appData.tables = [];
+      window.appData.tables.push({ id: code, name: name, category: cat, top: 375, left: 250 });
+      saveData();
 
       document.getElementById('addTableCode').value = '';
       document.getElementById('addTableName').value = '';
       document.getElementById('addTableCategory').value = '';
-
-      saveData();
-      refreshAdminData();
     }
 
-    function deleteTable(tableId) {
-      if (!confirm("確定要刪除這張桌次嗎？該桌的賓客分配也將受影響。")) return;
-      window.appData.tables = (window.appData.tables || []).filter(function(t) { return t.id !== tableId; });
-      saveData();
-      refreshAdminData();
+    function deleteTable(id) {
+      if (confirm("確定要刪除此桌次？")) {
+        window.appData.tables = (window.appData.tables || []).filter(function(t) { return t.id !== id; });
+        saveData();
+      }
     }
 
     function addNewGuest() {
@@ -820,31 +752,24 @@
       var note = document.getElementById('addGuestNote').value.trim();
 
       if (!name || !tableCode) {
-        alert("請填寫賓客姓名與分配桌號！");
+        alert("請填寫賓客姓名並選擇桌號！");
         return;
       }
 
-      window.appData.guests = window.appData.guests || [];
-      window.appData.guests.push({
-        name: name,
-        tableCode: tableCode,
-        tag: tag,
-        note: note
-      });
+      if (!window.appData.guests) window.appData.guests = [];
+      window.appData.guests.push({ name: name, tableCode: tableCode, tag: tag, note: note });
+      saveData();
 
       document.getElementById('addGuestName').value = '';
       document.getElementById('addGuestTag').value = '';
       document.getElementById('addGuestNote').value = '';
-
-      saveData();
-      refreshAdminData();
     }
 
-    function deleteGuest(index) {
-      if (!confirm("確定要刪除此賓客嗎？")) return;
-      window.appData.guests.splice(index, 1);
-      saveData();
-      refreshAdminData();
+    function deleteGuest(idx) {
+      if (confirm("確定要刪除此賓客？")) {
+        window.appData.guests.splice(idx, 1);
+        saveData();
+      }
     }
 
     function saveWeddingInfo() {
@@ -856,9 +781,72 @@
         hall: document.getElementById('cfgHall').value.trim()
       };
       window.appData.password = document.getElementById('cfgPassword').value.trim() || "1234";
-
       saveData();
-      alert("資訊與密碼已成功儲存！");
+      alert("婚禮資訊與密碼已成功更新！");
+    }
+
+    // 拖曳編輯平面圖
+    var draggingTableId = null;
+
+    function renderEditorMap() {
+      if (!window.appData) return;
+      var container = document.getElementById('editorNodesContainer');
+      var svg = document.getElementById('editorCarpetSvg');
+      container.innerHTML = '';
+      svg.innerHTML = '';
+
+      var c = window.appData.lCarpet || window.defaultData.lCarpet;
+      var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      polyline.setAttribute('points', c.x1 + ',' + c.y1 + ' ' + c.x2 + ',' + c.y2 + ' ' + c.x3 + ',' + c.y3);
+      polyline.setAttribute('stroke', '#D8C5B3');
+      polyline.setAttribute('stroke-width', c.width || 20);
+      polyline.setAttribute('stroke-linecap', 'round');
+      polyline.setAttribute('fill', 'none');
+      svg.appendChild(polyline);
+
+      (window.appData.tables || []).forEach(function(t) {
+        var circle = document.createElement('div');
+        circle.className = 'absolute table-circle-item w-16 h-16 sm:w-20 sm:h-20 bg-[#FAF6F0] border-2 border-[#D8C5B3] flex flex-col justify-center items-center text-center p-1 shadow-md cursor-grab active:cursor-grabbing';
+        
+        circle.style.top = ((t.top / 750) * 100) + '%';
+        circle.style.left = ((t.left / 500) * 100) + '%';
+
+        circle.innerHTML = '<span class="text-[10px] sm:text-xs font-bold font-serif-custom text-[#52473C] pointer-events-none">' + t.name + '</span>' +
+                           '<span class="text-[8px] sm:text-[9px] text-[#A39281] mt-0.5 font-mono pointer-events-none">' + t.id + '</span>';
+
+        // 綁定 Pointer Events (支援滑鼠與觸控拖曳)
+        circle.addEventListener('pointerdown', function(e) {
+          draggingTableId = t.id;
+          circle.classList.add('is-dragging');
+          circle.setPointerCapture(e.pointerId);
+        });
+
+        circle.addEventListener('pointermove', function(e) {
+          if (draggingTableId !== t.id) return;
+          var box = document.getElementById('editorCanvasBox').getBoundingClientRect();
+          var x = e.clientX - box.left;
+          var y = e.clientY - box.top;
+
+          var leftPx = Math.max(0, Math.min(500, (x / box.width) * 500));
+          var topPx = Math.max(0, Math.min(750, (y / box.height) * 750));
+
+          t.left = Math.round(leftPx);
+          t.top = Math.round(topPx);
+
+          circle.style.left = ((t.left / 500) * 100) + '%';
+          circle.style.top = ((t.top / 750) * 100) + '%';
+        });
+
+        circle.addEventListener('pointerup', function(e) {
+          if (draggingTableId === t.id) {
+            draggingTableId = null;
+            circle.classList.remove('is-dragging');
+            circle.releasePointerCapture(e.pointerId);
+          }
+        });
+
+        container.appendChild(circle);
+      });
     }
 
     function updateCarpetFromInputs() {
@@ -877,131 +865,30 @@
 
     function saveCanvasLayout() {
       saveData();
-      alert("平面圖與紅毯佈局已儲存並同步至雲端！");
-    }
-
-    // 後台地圖編輯器與拖曳手勢
-    var activeDraggingNode = null;
-    var dragOffset = { x: 0, y: 0 };
-
-    function renderEditorMap() {
-      var container = document.getElementById('editorNodesContainer');
-      var svg = document.getElementById('editorCarpetSvg');
-      if (!container || !svg) return;
-
-      container.innerHTML = '';
-      svg.innerHTML = '';
-
-      var c = window.appData.lCarpet || window.defaultData.lCarpet;
-      var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-      polyline.setAttribute('points', c.x1 + ',' + c.y1 + ' ' + c.x2 + ',' + c.y2 + ' ' + c.x3 + ',' + c.y3);
-      polyline.setAttribute('stroke', '#D8C5B3');
-      polyline.setAttribute('stroke-width', c.width || 20);
-      polyline.setAttribute('stroke-linecap', 'round');
-      polyline.setAttribute('fill', 'none');
-      svg.appendChild(polyline);
-
-      (window.appData.tables || []).forEach(function(t) {
-        var circle = document.createElement('div');
-        circle.id = 'editor-node-' + t.id;
-        circle.dataset.id = t.id;
-        circle.className = 'absolute table-circle-item w-16 h-16 sm:w-20 sm:h-20 bg-[#FAF6F0] border-2 border-[#52473C] flex flex-col justify-center items-center text-center p-1 shadow-md cursor-grab active:cursor-grabbing';
-        
-        circle.style.top = ((t.top / 750) * 100) + '%';
-        circle.style.left = ((t.left / 500) * 100) + '%';
-
-        circle.innerHTML = '<span class="text-[10px] sm:text-xs font-bold font-serif-custom text-[#52473C] pointer-events-none truncate w-full px-0.5">' + t.name + '</span>' +
-                           '<span class="text-[8px] sm:text-[9px] text-[#A39281] mt-0.5 font-mono pointer-events-none">' + t.id + '</span>';
-
-        circle.addEventListener('mousedown', startDrag);
-        circle.addEventListener('touchstart', startDrag, { passive: false });
-
-        container.appendChild(circle);
-      });
-    }
-
-    function startDrag(e) {
-      e.preventDefault();
-      activeDraggingNode = e.currentTarget;
-      activeDraggingNode.classList.add('is-dragging');
-
-      var box = document.getElementById('editorCanvasBox').getBoundingClientRect();
-      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-      window.addEventListener('mousemove', onDrag);
-      window.addEventListener('touchmove', onDrag, { passive: false });
-      window.addEventListener('mouseup', stopDrag);
-      window.addEventListener('touchend', stopDrag);
-    }
-
-    function onDrag(e) {
-      if (!activeDraggingNode) return;
-      e.preventDefault();
-
-      var box = document.getElementById('editorCanvasBox').getBoundingClientRect();
-      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-      var relX = clientX - box.left;
-      var relY = clientY - box.top;
-
-      var posX = Math.max(0, Math.min(box.width, relX));
-      var posY = Math.max(0, Math.min(box.height, relY));
-
-      var scaleX = 500 / box.width;
-      var scaleY = 750 / box.height;
-
-      var mapX = Math.round(posX * scaleX);
-      var mapY = Math.round(posY * scaleY);
-
-      activeDraggingNode.style.left = ((mapX / 500) * 100) + '%';
-      activeDraggingNode.style.top = ((mapY / 750) * 100) + '%';
-
-      var tableId = activeDraggingNode.dataset.id;
-      var targetTable = (window.appData.tables || []).find(function(t) { return t.id === tableId; });
-      if (targetTable) {
-        targetTable.left = mapX;
-        targetTable.top = mapY;
-      }
-    }
-
-    function stopDrag() {
-      if (activeDraggingNode) {
-        activeDraggingNode.classList.remove('is-dragging');
-        activeDraggingNode = null;
-        saveData();
-      }
-      window.removeEventListener('mousemove', onDrag);
-      window.removeEventListener('touchmove', onDrag);
-      window.removeEventListener('mouseup', stopDrag);
-      window.removeEventListener('touchend', stopDrag);
+      alert("平面圖與紅毯佈局已同步至雲端！");
     }
 
     function exportGuestCSV() {
-      if (!window.appData || !window.appData.guests) return;
-      
-      var csvContent = "\uFEFF姓名,席位桌號,桌次名稱,分類標籤,備註\n";
+      if (!window.appData.guests || window.appData.guests.length === 0) {
+        alert("尚無賓客資料可供匯出。");
+        return;
+      }
+      var csvContent = "\uFEFF姓名,桌號,桌次名稱,標籤,備註\n";
       window.appData.guests.forEach(function(g) {
         var tableObj = (window.appData.tables || []).find(function(t) { return t.id === g.tableCode; });
         var tableName = tableObj ? tableObj.name : g.tableCode;
-        csvContent += '"' + (g.name || '') + '","' + (g.tableCode || '') + '","' + tableName + '","' + (g.tag || '') + '","' + (g.note || '') + '"\n';
+        csvContent += '"' + g.name + '","' + g.tableCode + '","' + tableName + '","' + (g.tag || '') + '","' + (g.note || '') + '"\n';
       });
 
       var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      var url = URL.createObjectURL(blob);
       var link = document.createElement("a");
+      var url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
       link.setAttribute("download", "婚禮賓客名單.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
-
-    // 初始載入渲染
-    document.addEventListener('DOMContentLoaded', function() {
-      renderFrontend();
-    });
   </script>
 </body>
 </html>
