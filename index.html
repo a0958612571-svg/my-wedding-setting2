@@ -11,9 +11,77 @@
   
   <!-- Firebase SDK (v9 模組化引入) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+  const firebaseConfig = {
+    apiKey: "AIzaSyBfVUH9KVZUybFtMPA-0Ol28pJURTjzHCQ",
+    authDomain: "wedding-seating-f074d.firebaseapp.com",
+    databaseURL: "https://wedding-seating-f074d-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "wedding-seating-f074d",
+    storageBucket: "wedding-seating-f074d.firebasestorage.app",
+    messagingSenderId: "520607155146",
+    appId: "1:520607155146:web:63c21d1c3ad14a3cc6c533",
+    measurementId: "G-GQMK6BF9YC"
+  };
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'wedding_seating');
+
+    window.db = db;
+    window.dbRef = dbRef;
+    window.setDatabaseData = (data) => set(dbRef, data);
+
+    let isInitialLoaded = false;
+
+    // 即時雙向同步
+    onValue(dbRef, (snapshot) => {
+      isInitialLoaded = true;
+      const data = snapshot.val();
+      if (data) {
+        window.appData = data;
+      } else {
+        window.setDatabaseData(window.defaultData);
+        window.appData = window.defaultData;
+      }
+      if (window.renderFrontend) window.renderFrontend();
+      if (window.refreshAdminData) window.refreshAdminData();
+      if (window.renderEditorMap) window.renderEditorMap();
+      
+      const statusEl = document.getElementById('syncStatus');
+      if (statusEl) {
+        statusEl.innerText = "🟢 雲端同步中";
+        statusEl.className = "text-[10px] text-green-600 font-bold bg-green-50 px-2.5 py-1 rounded-full border border-green-200";
+      }
+    }, (error) => {
+      console.error("Firebase 連線錯誤:", error);
+      fallbackToLocal("🔴 連線失敗 (權限限制)");
+    });
+
+    // 3 秒逾時防卡死機制
+    setTimeout(() => {
+      if (!isInitialLoaded) {
+        fallbackToLocal("🟠 離線預覽模式");
+      }
+    }, 3000);
+
+  } catch (e) {
+    console.error("Firebase 初始化失敗:", e);
+    fallbackToLocal("🔴 初始化失敗");
+  }
+
+  function fallbackToLocal(statusText) {
+    window.appData = window.appData || window.defaultData;
+    if (window.renderFrontend) window.renderFrontend();
+    const statusEl = document.getElementById('syncStatus');
+    if (statusEl) {
+      statusEl.innerText = statusText;
+      statusEl.className = "text-[10px] text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200";
+    }
+  }
+</script>
     // ⚠️ 請在此處填入你在 Firebase 主控台取得的 firebaseConfig
 const firebaseConfig = {
   apiKey: "AIzaSyBfVUH9KVZUybFtMPA-0Ol28pJURTjzHCQ",
